@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NGA Inversiones | Estrategias de Inversión Personalizadas</title>
+    <meta name="description" content="NGA Inversiones - Agente de Liquidación y Compensación. Cotizaciones en tiempo real y asesoramiento financiero personalizado en Rosario.">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            color: #1a1a1a;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            padding: 1rem 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        nav {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2rem;
+        }
+
+        .logo {
+            height: 55px; /* Altura ajustada */
+            background: white; /* Fondo blanco para que el logo se vea bien sobre el azul */
+            padding: 5px 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            transition: opacity 0.3s;
+        }
+
+        .nav-links a:hover {
+            opacity: 0.8;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: white;
+            padding: 6rem 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="%23ffffff" fill-opacity="0.05" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,122.7C672,117,768,139,864,149.3C960,160,1056,160,1152,138.7C1248,117,1344,75,1392,53.3L1440,32L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>') no-repeat bottom;
+            background-size: cover;
+        }
+
+        .hero-content {
+            max-width: 900px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffffff 0%, #93c5fd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.5rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .cta-button {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            padding: 1rem 3rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.4);
+        }
+
+        /* Cotizaciones en Tiempo Real */
+        .cotizaciones {
+            background: white;
+            padding: 4rem 2rem;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.05);
+        }
+
+        .cotizaciones-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .cotizaciones h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            color: #1e3a8a;
+        }
+
+        .cotizaciones-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .cotizacion-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cotizacion-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+        }
+
+        .cotizacion-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+
+        .cotizacion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .cotizacion-nombre {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e3a8a;
+        }
+
+        .cotizacion-bandera {
+            font-size: 2rem;
+        }
+
+        .cotizacion-valor {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 1rem;
+        }
+
+        .cotizacion-detalle {
+            display: flex;
+            justify-content: space-between;
+            margin: 0.5rem 0;
+            font-size: 0.95rem;
+        }
+
+        .cotizacion-variacion {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .positivo {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .negativo {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .loading {
+            text-align: center;
+            color: #64748b;
+            font-style: italic;
+        }
+
+        .ultima-actualizacion {
+            text-align: center;
+            margin-top: 2rem;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        /* Calculadora */
+        .calculadora {
+            background: white;
+            padding: 4rem 2rem;
+        }
+
+        .calculadora-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .calculadora h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            color: #1e3a8a;
+        }
+
+        .calculadora-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .calc-input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .calc-input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #1e3a8a;
+            font-weight: 600;
+        }
+
+        .calc-input-group input,
+        .calc-input-group select {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            transition: border-color 0.3s;
+        }
+
+        .calc-input-group input:focus,
+        .calc-input-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .calc-result {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            margin-top: 1.5rem;
+        }
+
+        .calc-result-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-top: 0.5rem;
+        }
+
+        .calc-switch {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .calc-switch button {
+            padding: 0.8rem 2rem;
+            border: 2px solid #3b82f6;
+            background: white;
+            color: #3b82f6;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .calc-switch button.active {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .calc-switch button:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Gráfico Simple */
+        .grafico-tendencia {
+            background: #f8fafc;
+            padding: 4rem 2rem;
+        }
+
+        .grafico-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .grafico-container h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            color: #1e3a8a;
+        }
+
+        .chart-wrapper {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .chart-bars {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            height: 300px;
+            margin-top: 2rem;
+            padding: 1rem;
+        }
+
+        .chart-bar {
+            flex: 1;
+            margin: 0 0.5rem;
+            background: linear-gradient(to top, #3b82f6, #60a5fa);
+            border-radius: 10px 10px 0 0;
+            position: relative;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .chart-bar:hover {
+            opacity: 0.8;
+            transform: translateY(-5px);
+        }
+
+        .chart-bar-label {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.85rem;
+            color: #64748b;
+            white-space: nowrap;
+        }
+
+        .chart-bar-value {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: 700;
+            color: #1e3a8a;
+            font-size: 0.9rem;
+        }
+
+        /* Botón WhatsApp flotante */
+        .whatsapp-float {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #25D366;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            box-shadow: 0 5px 20px rgba(37, 211, 102, 0.4);
+            cursor: pointer;
+            transition: transform 0.3s;
+            z-index: 1000;
+            text-decoration: none;
+        }
+
+        .whatsapp-float:hover {
+            transform: scale(1.1);
+        }
+
+        /* Servicios */
+        .servicios {
+            background: #f8fafc;
+            padding: 5rem 2rem;
+        }
+
+        .servicios-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .servicios h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            color: #1e3a8a;
+        }
+
+        .servicios-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+
+        .servicio-card {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            transition: transform 0.3s;
+        }
+
+        .servicio-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .servicio-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .servicio-card h3 {
+            color: #1e3a8a;
+            margin-bottom: 1rem;
+        }
+
+        /* Sobre Nosotros */
+        .sobre-nosotros {
+            background: white;
+            padding: 5rem 2rem;
+        }
+
+        .sobre-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+
+        .sobre-texto h2 {
+            font-size: 2.5rem;
+            color: #1e3a8a;
+            margin-bottom: 1.5rem;
+        }
+
+        .sobre-texto p {
+            font-size: 1.1rem;
+            color: #475569;
+            margin-bottom: 1rem;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-numero {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #3b82f6;
+        }
+
+        .stat-texto {
+            color: #64748b;
+        }
+
+        /* Footer */
+        footer {
+            background: #0f172a;
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .footer-links a {
+            color: #93c5fd;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .footer-links a:hover {
+            color: white;
+        }
+
+        .contacto-info {
+            margin: 2rem 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .hero p {
+                font-size: 1.1rem;
+            }
+
+            .sobre-container {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <img src="https://www.ngainversiones.com.ar/wp-content/uploads/2019/01/main-logo.png" alt="NGA Inversiones" class="logo">
+            <ul class="nav-links">
+                <li><a href="#inicio">Inicio</a></li>
+                <li><a href="#cotizaciones">Cotizaciones</a></li>
+                <li><a href="#servicios">Servicios</a></li>
+                <li><a href="#contacto">Contacto</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section class="hero" id="inicio">
+        <div class="hero-content">
+            <h1>Tu Futuro Financiero Comienza Aquí</h1>
+            <p>Más de 65 años liderando estrategias de inversión personalizadas</p>
+            <a href="#contacto" class="cta-button">Comenzar a Invertir</a>
+        </div>
+    </section>
+
+    <section class="cotizaciones" id="cotizaciones">
+        <div class="cotizaciones-container">
+            <h2>Cotizaciones en Tiempo Real</h2>
+            <div class="cotizaciones-grid">
+                <div class="cotizacion-card">
+                    <div class="cotizacion-header">
+                        <span class="cotizacion-nombre">Dólar Blue</span>
+                        <span class="cotizacion-bandera">🇺🇸</span>
+                    </div>
+                    <div class="cotizacion-valor" id="dolar-blue-venta">
+                        <span class="loading">Cargando...</span>
+                    </div>
+                    <div class="cotizacion-detalle">
+                        <span>Compra:</span>
+                        <span id="dolar-blue-compra">-</span>
+                    </div>
+                    <div class="cotizacion-detalle">
+                        <span>Venta:</span>
+                        <span id="dolar-blue-venta-detalle">-</span>
+                    </div>
+                    <div id="dolar-blue-variacion"></div>
+                </div>
+
+                <div class="cotizacion-card">
+                    <div class="cotizacion-header">
+                        <span class="cotizacion-nombre">Euro</span>
+                        <span class="cotizacion-bandera">🇪🇺</span>
+                    </div>
+                    <div class="cotizacion-valor" id="euro-venta">
+                        <span class="loading">Cargando...</span>
+                    </div>
+                    <div class="cotizacion-detalle">
+                        <span>Compra:</span>
+                        <span id="euro-compra">-</span>
+                    </div>
+                    <div class="cotizacion-detalle">
+                        <span>Venta:</span>
+                        <span id="euro-venta-detalle">-</span>
+                    </div>
+                    <div id="euro-variacion"></div>
+                </div>
+
+                <div class="cotizacion-card">
+                    <div class="cotizacion-header">
+                        <span class="cotizacion-nombre">Real Brasileño</span>
+                        <span class="cotizacion-bandera">🇧🇷</span>
+                    </div>
+                    <div class="cotizacion-valor" id="real-venta">
+                        <span class="loading">Cargando...</span>
+                    </div>
+                    <div class="cotizacion-detalle">
+                        <span>Compra:</span>
+                        <span id="real-compra">-</span>
+                    </div>
+                    <div class="cotizacion-detalle">
+                        <span>Venta:</span>
+                        <span id="real-venta-detalle">-</span>
+                    </div>
+                    <div id="real-variacion"></div>
+                </div>
+            </div>
+            <p class="ultima-actualizacion" id="ultima-actualizacion">Conectando con el mercado...</p>
+        </div>
+    </section>
+
+    <section class="calculadora">
+        <div class="calculadora-container">
+            <h2>Calculadora de Divisas</h2>
+            <div class="calculadora-card">
+                <div class="calc-switch">
+                    <button class="active" onclick="cambiarModo('compra', event)">Compra</button>
+                    <button onclick="cambiarModo('venta', event)">Venta</button>
+                </div>
+                
+                <div class="calc-input-group">
+                    <label for="monto">Monto en Pesos Argentinos (ARS)</label>
+                    <input type="number" id="monto" placeholder="Ej: 100000" value="100000" oninput="calcular()">
+                </div>
+
+                <div class="calc-input-group">
+                    <label for="moneda">Moneda Destino</label>
+                    <select id="moneda" onchange="calcular()">
+                        <option value="dolar">Dólar Blue</option>
+                        <option value="euro">Euro</option>
+                        <option value="real">Real Brasileño</option>
+                    </select>
+                </div>
+
+                <div class="calc-result">
+                    <div id="resultado-label">Recibirías aproximadamente:</div>
+                    <div class="calc-result-value" id="resultado">-</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="grafico-tendencia">
+        <div class="grafico-container">
+            <h2>Comparación de Valor (Venta)</h2>
+            <div class="chart-wrapper">
+                <p style="text-align: center; color: #64748b; margin-bottom: 1rem;">Valores actualizados en tiempo real</p>
+                <div class="chart-bars">
+                    <div class="chart-bar" id="bar-dolar" style="height: 0%">
+                        <div class="chart-bar-value" id="bar-dolar-value">-</div>
+                        <div class="chart-bar-label">Dólar Blue</div>
+                    </div>
+                    <div class="chart-bar" id="bar-euro" style="height: 0%">
+                        <div class="chart-bar-value" id="bar-euro-value">-</div>
+                        <div class="chart-bar-label">Euro</div>
+                    </div>
+                    <div class="chart-bar" id="bar-real" style="height: 0%">
+                        <div class="chart-bar-value" id="bar-real-value">-</div>
+                        <div class="chart-bar-label">Real</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="servicios" id="servicios">
+        <div class="servicios-container">
+            <h2>Nuestros Servicios</h2>
+            <div class="servicios-grid">
+                <div class="servicio-card">
+                    <div class="servicio-icon">📊</div>
+                    <h3>Asesoramiento Personalizado</h3>
+                    <p>Estrategias de inversión adaptadas a tu perfil y objetivos financieros</p>
+                </div>
+                <div class="servicio-card">
+                    <div class="servicio-icon">💼</div>
+                    <h3>Gestión de Carteras</h3>
+                    <p>Administración profesional de activos financieros para maximizar rentabilidad</p>
+                </div>
+                <div class="servicio-card">
+                    <div class="servicio-icon">📈</div>
+                    <h3>Análisis de Mercado</h3>
+                    <p>Información actualizada y research de calidad para tus decisiones</p>
+                </div>
+                <div class="servicio-card">
+                    <div class="servicio-icon">🔐</div>
+                    <h3>Máxima Seguridad</h3>
+                    <p>Operamos bajo las regulaciones más estrictas del mercado</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="sobre-nosotros">
+        <div class="sobre-container">
+            <div class="sobre-texto">
+                <h2>65 Años de Excelencia</h2>
+                <p>NGA Inversiones ALyC es la continuación de una trayectoria de compromiso e integridad empresarial que comenzó con Fernando J. Roullion y compañía.</p>
+                <p>Creamos estrategias de inversión basadas en confianza, diligencia y las nuevas tecnologías, ofreciendo servicios financieros de calidad que mejoran la rentabilidad de tus inversiones.</p>
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-numero">+65</div>
+                        <div class="stat-texto">Años de Experiencia</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-numero">+20</div>
+                        <div class="stat-texto">Años como NGA</div>
+                    </div>
+                </div>
+            </div>
+            <div class="sobre-imagen">
+                <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#1e3a8a;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                    <rect width="400" height="400" fill="url(#grad1)" opacity="0.1" rx="20"/>
+                    <path d="M100 300 L200 200 L300 250 L400 150" stroke="#3b82f6" stroke-width="4" fill="none"/>
+                    <circle cx="200" cy="200" r="60" fill="#3b82f6" opacity="0.2"/>
+                    <circle cx="300" cy="250" r="50" fill="#2563eb" opacity="0.2"/>
+                    <path d="M100 100 Q200 50 300 100 T500 100" stroke="#1e3a8a" stroke-width="2" fill="none" opacity="0.3"/>
+                </svg>
+            </div>
+        </div>
+    </section>
+
+    <a href="https://wa.me/5493414258974?text=Hola,%20quisiera%20consultar%20sobre%20inversiones" class="whatsapp-float" target="_blank" title="Contactanos por WhatsApp">
+        💬
+    </a>
+
+    <footer id="contacto">
+        <div class="footer-content">
+            <h3>NGA Inversiones SA ALyC N°98</h3>
+            <div class="contacto-info">
+                <p>📞 (0341) 425-8974/75/76</p>
+                <p>✉️ info@ngainversiones.com.ar</p>
+            </div>
+            <div class="footer-links">
+                <a href="https://www.byma.com.ar/resumen-mercado/" target="_blank">Cotizaciones del Mercado</a>
+                <a href="https://www.facebook.com/ngainversionesrosario/" target="_blank">Facebook</a>
+            </div>
+            <p style="margin-top: 2rem; opacity: 0.7;">© 2026 NGA Inversiones. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
+    <script>
+        // --- 1. CONFIGURACIÓN Y ESTADO ---
+        let cotizacionesActuales = {
+            dolar: { compra: 0, venta: 0 },
+            euro: { compra: 0, venta: 0 },
+            real: { compra: 0, venta: 0 }
+        };
+
+        let modoCalculadora = 'compra'; // 'compra' (tengo pesos) o 'venta' (tengo moneda extranjera)
+
+        // --- 2. FUNCIONES DE API ---
+        async function obtenerCotizaciones() {
+            try {
+                const [respDolar, respEuro, respReal] = await Promise.all([
+                    fetch('https://dolarapi.com/v1/dolares/blue'),
+                    fetch('https://dolarapi.com/v1/cotizaciones/eur'),
+                    fetch('https://dolarapi.com/v1/cotizaciones/brl')
+                ]);
+
+                const dataDolar = await respDolar.json();
+                const dataEuro = await respEuro.json();
+                const dataReal = await respReal.json();
+
+                cotizacionesActuales.dolar = { compra: dataDolar.compra, venta: dataDolar.venta };
+                cotizacionesActuales.euro = { compra: dataEuro.compra, venta: dataEuro.venta };
+                cotizacionesActuales.real = { compra: dataReal.compra, venta: dataReal.venta };
+
+                actualizarTarjeta('dolar-blue', dataDolar.compra, dataDolar.venta, 0); 
+                actualizarTarjeta('euro', dataEuro.compra, dataEuro.venta, 0);
+                actualizarTarjeta('real', dataReal.compra, dataReal.venta, 0);
+
+                const ahora = new Date();
+                const horaStr = ahora.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+                document.getElementById('ultima-actualizacion').textContent = `Última actualización: ${ahora.toLocaleDateString('es-AR')} ${horaStr}`;
+
+                actualizarGrafico();
+                calcular();
+
+            } catch (error) {
+                console.error('Error obteniendo datos:', error);
+                document.getElementById('ultima-actualizacion').textContent = 'Error de conexión con el mercado.';
+            }
+        }
+
+        // --- 3. FUNCIONES DE INTERFAZ (UI) ---
+        function actualizarTarjeta(idBase, compra, venta, variacion) {
+            const formato = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' });
+
+            const elemVenta = document.getElementById(`${idBase}-venta`);
+            const elemCompra = document.getElementById(`${idBase}-compra`);
+            const elemVentaDetalle = document.getElementById(`${idBase}-venta-detalle`);
+            const elemVariacion = document.getElementById(`${idBase}-variacion`);
+
+            if(elemVenta) elemVenta.innerHTML = formato.format(venta);
+            if(elemCompra) elemCompra.textContent = formato.format(compra);
+            if(elemVentaDetalle) elemVentaDetalle.textContent = formato.format(venta);
+
+            if(elemVariacion) {
+                elemVariacion.innerHTML = ''; 
+                if (variacion !== 0) {
+                    const span = document.createElement('span');
+                    span.className = `cotizacion-variacion ${variacion >= 0 ? 'positivo' : 'negativo'}`;
+                    span.textContent = `${variacion >= 0 ? '+' : ''}${variacion}%`;
+                    elemVariacion.appendChild(span);
+                }
+            }
+        }
+
+        // --- 4. LÓGICA DE CALCULADORA ---
+        function cambiarModo(modo, evento) {
+            modoCalculadora = modo;
+            
+            document.querySelectorAll('.calc-switch button').forEach(btn => btn.classList.remove('active'));
+            if(evento) evento.target.classList.add('active');
+
+            const labelMonto = document.querySelector('label[for="monto"]');
+            const labelResultado = document.getElementById('resultado-label');
+            const selectMonedaLabel = document.querySelector('.calc-input-group label[for="moneda"]');
+
+            if (modo === 'compra') {
+                labelMonto.textContent = "Tengo Pesos Argentinos (ARS):";
+                selectMonedaLabel.textContent = "Quiero Comprar:";
+                labelResultado.textContent = "Recibirías aproximadamente:";
+            } else {
+                labelMonto.textContent = "Tengo Moneda Extranjera:";
+                selectMonedaLabel.textContent = "Voy a Vender:";
+                labelResultado.textContent = "Te pagarían en Pesos:";
+            }
+            
+            calcular();
+        }
+
+        function calcular() {
+            const montoInput = parseFloat(document.getElementById('monto').value);
+            const monedaSelect = document.getElementById('moneda').value;
+            const resultadoElem = document.getElementById('resultado');
+
+            if (isNaN(montoInput) || montoInput <= 0) {
+                resultadoElem.textContent = "-";
+                return;
+            }
+
+            const cotizacion = cotizacionesActuales[monedaSelect];
+            if (!cotizacion || cotizacion.venta === 0) {
+                resultadoElem.textContent = "Cargando...";
+                return;
+            }
+
+            let total = 0;
+            const formatoARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' });
+            
+            if (modoCalculadora === 'compra') {
+                total = montoInput / cotizacion.venta;
+                let currencyCode = monedaSelect === 'dolar' ? 'USD' : (monedaSelect === 'euro' ? 'EUR' : 'BRL');
+                resultadoElem.textContent = new Intl.NumberFormat('es-AR', { style: 'currency', currency: currencyCode }).format(total);
+            } else {
+                total = montoInput * cotizacion.compra;
+                resultadoElem.textContent = formatoARS.format(total);
+            }
+        }
+
+        // --- 5. GRÁFICO DINÁMICO ---
+        function actualizarGrafico() {
+            const valDolar = cotizacionesActuales.dolar.venta;
+            const valEuro = cotizacionesActuales.euro.venta;
+            const valReal = cotizacionesActuales.real.venta;
+
+            const maximo = Math.max(valDolar, valEuro, valReal);
+            if(maximo === 0) return;
+
+            const setBar = (idBar, idVal, valor) => {
+                const altura = (valor / maximo) * 100;
+                const bar = document.getElementById(idBar);
+                const valTxt = document.getElementById(idVal);
+                
+                if(bar) bar.style.height = `${altura}%`;
+                if(valTxt) valTxt.textContent = `$${Math.round(valor)}`;
+            };
+
+            setBar('bar-dolar', 'bar-dolar-value', valDolar);
+            setBar('bar-euro', 'bar-euro-value', valEuro);
+            setBar('bar-real', 'bar-real-value', valReal);
+        }
+
+        // --- 6. INICIALIZACIÓN ---
+        document.addEventListener('DOMContentLoaded', () => {
+            obtenerCotizaciones();
+            setInterval(obtenerCotizaciones, 60000);
+        });
+
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) target.scrollIntoView({ behavior: 'smooth' });
+            });
+        });
+    </script>
+</body>
+</html>
