@@ -74,10 +74,17 @@ app.MapGet("/api/quotes", async (IHttpClientFactory httpClientFactory) =>
             real = new { compra = 276, venta = 277 },
             bonds = new[] {
                 new { ticker = "AL30", nombre = "Bonar 2030", compra = 52.40m, venta = 53.10m, moneda = "USD" },
-                new { ticker = "GD30", nombre = "Global 2030", compra = 56.15m, venta = 56.80m, moneda = "USD" }
+                new { ticker = "GD30", nombre = "Global 2030", compra = 56.15m, venta = 56.80m, moneda = "USD" },
+                new { ticker = "AL29", nombre = "Bonar 2029", compra = 55.20m, venta = 55.90m, moneda = "USD" },
+                new { ticker = "AE38", nombre = "Bonar 2038", compra = 48.10m, venta = 48.75m, moneda = "USD" },
+                new { ticker = "GD35", nombre = "Global 2035", compra = 46.30m, venta = 47.00m, moneda = "USD" }
             },
             stocks = new[] {
-                new { ticker = "GGAL", nombre = "Galicia", precio = 4850.50m, variacion = "+2.4%" }
+                new { ticker = "GGAL", nombre = "Galicia", precio = 4850.50m, variacion = "+2.4%" },
+                new { ticker = "YPFD", nombre = "YPF S.A.", precio = 24120.00m, variacion = "-1.2%" },
+                new { ticker = "PAMP", nombre = "Pampa Energía", precio = 1840.20m, variacion = "+0.8%" },
+                new { ticker = "LOMA", nombre = "Loma Negra", precio = 1450.00m, variacion = "+0.5%" },
+                new { ticker = "EDN", nombre = "Edenor", precio = 980.50m, variacion: "-0.4%" }
             }
         });
     }

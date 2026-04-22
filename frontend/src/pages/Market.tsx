@@ -126,11 +126,18 @@ export const Market = () => {
           euro: { compra: 1611, venta: 1625 },
           real: { compra: 276, venta: 277 },
           bonds: [
-            { ticker: "AL30", nombre: "Bonar 2030", compra: 52.40, venta: 53.10 },
-            { ticker: "GD30", nombre: "Global 2030", compra: 56.15, venta: 56.80 }
+            { ticker: "AL30", nombre: "Bonar 2030", compra = 52.40, venta: 53.10 },
+            { ticker: "GD30", nombre: "Global 2030", compra = 56.15, venta: 56.80 },
+            { ticker: "AL29", nombre: "Bonar 2029", compra = 55.20, venta: 55.90 },
+            { ticker: "AE38", nombre: "Bonar 2038", compra = 48.10, venta = 48.75 },
+            { ticker: "GD35", nombre: "Global 2035", compra = 46.30, venta = 47.00 }
           ],
           stocks: [
-            { ticker: "GGAL", nombre: "Galicia", precio: 4850.50, variacion: "+2.4%", sector: "Bancario" }
+            { ticker: "GGAL", nombre: "Galicia", precio: 4850.50, variacion: "+2.4%", sector: "Bancario" },
+            { ticker: "YPFD", nombre: "YPF S.A.", precio = 24120.00, variacion: "-1.2%", sector: "Energía" },
+            { ticker: "PAMP", nombre: "Pampa Energía", precio = 1840.20, variacion: "+0.8%", sector: "Energía" },
+            { ticker: "LOMA", nombre: "Loma Negra", precio = 1450.00, variacion: "+0.5%", sector: "Construcción" },
+            { ticker: "EDN", nombre: "Edenor", precio = 980.50, variacion: "-0.4%", sector: "Energía" }
           ]
         });
       } finally {
