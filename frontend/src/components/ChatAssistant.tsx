@@ -37,34 +37,44 @@ export const ChatAssistant = () => {
   }, [messages, isTyping]);
 
   const findResponse = (input: string) => {
-    const text = input.toLowerCase();
+    const text = input.toLowerCase().trim();
+    
+    // 1. Check direct FAQ matches (case insensitive)
+    const faqMatch = FAQ.find(f => f.q.toLowerCase() === text);
+    if (faqMatch) return faqMatch.a;
+
+    // 2. Check Knowledge Base keywords
     const entry = KNOWLEDGE_BASE.find(item => 
       item.keywords.some(keyword => text.includes(keyword))
     );
-    return entry ? entry.response : 'No estoy seguro de entender tu consulta, pero un asesor humano puede ayudarte ahora mismo por WhatsApp.';
+    if (entry) return entry.response;
+
+    // 3. Default fallback
+    return 'No estoy seguro de entender tu consulta, pero un asesor humano puede ayudarte ahora mismo por WhatsApp.';
   };
 
-  const handleSend = async (text: string = userInput) => {
-    if (!text.trim()) return;
+  const handleSend = (text: string = userInput) => {
+    const trimmedText = text.trim();
+    if (!trimmedText) return;
     
-    const userMsg = { role: 'user' as const, text };
+    const userMsg = { role: 'user' as const, text: trimmedText };
     setMessages(prev => [...prev, userMsg]);
     setUserInput('');
     setMode('chat');
     setIsTyping(true);
 
-    // Simulate thinking
+    // Simulate thinking delay
     setTimeout(() => {
-      const botResponse = findResponse(text);
+      const botResponse = findResponse(trimmedText);
       const isFallback = botResponse.includes('asesor humano');
       
       setMessages(prev => [...prev, { 
         role: 'bot', 
         text: botResponse,
-        showWA: isFallback || prev.length > 4 // Show WhatsApp after a few messages or if couldn't answer
+        showWA: isFallback || prev.length > 5 // Show WhatsApp if failed or long convo
       }]);
       setIsTyping(false);
-    }, 1000);
+    }, 800);
   };
 
   const openWhatsApp = (msg: string = '') => {
