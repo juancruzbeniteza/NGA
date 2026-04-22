@@ -7,13 +7,16 @@ import { Market } from './pages/Market';
 import About from './pages/About';
 import { ContactPage } from './pages/ContactPage';
 import { ChatAssistant } from './components/ChatAssistant';
-import { motion, AnimatePresence } from 'framer-motion';
+import { MarketTicker } from './components/ui/MarketTicker';
+import { AnimatePresence } from 'framer-motion';
+import { usePageTitle } from './hooks/usePageTitle';
 
 // Calculator is commented out as requested
 // import { CalculatorPage } from './pages/CalculatorPage';
 
 const ScrollToTop = () => {
   const { pathname } = useLocation();
+  usePageTitle(); // Update title on route change
   React.useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [pathname]);
@@ -25,6 +28,7 @@ export default function App() {
     <Router>
       <ScrollToTop />
       <div className="min-h-screen bg-[#F8FAFC] selection:bg-blue-600 selection:text-white font-sans antialiased overflow-x-hidden">
+        <MarketTicker />
         <Navbar />
         <main className="relative">
           <AnimatePresence mode="wait">

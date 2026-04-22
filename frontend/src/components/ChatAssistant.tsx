@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, X, Send, HelpCircle, ArrowRight, User, Phone, CheckCircle2, ChevronRight } from 'lucide-react';
+import { MessageSquare, X, Send, ChevronRight } from 'lucide-react';
 
 const FAQ = [
   { q: '¿Cómo puedo empezar a operar?', a: 'Podés comenzar registrándote en nuestra plataforma o visitando nuestras oficinas en Rosario.' },

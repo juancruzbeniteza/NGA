@@ -1,6 +1,5 @@
-import React from 'react';
 import { motion } from 'framer-motion';
-import { Landmark, Users, History, Award, CheckCircle2, MapPin, Phone, Mail } from 'lucide-react';
+import { Landmark, Users, History, CheckCircle2, MapPin, Phone } from 'lucide-react';
 
 const About = () => {
   return (

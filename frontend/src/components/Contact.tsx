@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Mail, MapPin, Phone, MessageSquare, ChevronRight, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { Mail, Phone, ChevronRight, CheckCircle2, AlertCircle, Clock, RefreshCcw } from 'lucide-react';
 
 export const Contact = () => {
   const [formData, setFormData] = useState({ nombre: '', email: '', mensaje: '' });
@@ -108,7 +108,7 @@ export const Contact = () => {
                   <button
                     type="submit"
                     disabled={status === 'loading' || status === 'success'}
-                    className="w-full relative group overflow-hidden bg-blue-600 disabled:bg-slate-800 text-white font-black py-6 rounded-[2rem] text-xl transition-all shadow-2xl shadow-blue-900/40 flex items-center justify-center"
+                    className="w-full relative group overflow-hidden bg-blue-600 disabled:bg-slate-800 text-white font-black py-5 md:py-6 rounded-[2rem] text-lg md:text-xl transition-all shadow-2xl shadow-blue-900/40 flex items-center justify-center"
                   >
                     <AnimatePresence mode="wait">
                       {status === 'loading' ? (

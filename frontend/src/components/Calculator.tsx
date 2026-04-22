@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCcw, Info, Wallet, TrendingUp, ArrowRightLeft, Landmark, ArrowRight, ShieldCheck } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { RefreshCcw, Wallet, TrendingUp, Landmark, ArrowRight, ShieldCheck } from 'lucide-react';
 
 export const Calculator = () => {
   const [mode, setMode] = useState<'compra' | 'venta'>('compra');
@@ -12,7 +12,7 @@ export const Calculator = () => {
   const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchQuotes = async () => {
       try {
         const response = await axios.get('http://localhost:5023/api/quotes');
         setQuotes(response.data);
@@ -24,7 +24,7 @@ export const Calculator = () => {
         });
       }
     };
-    fetch();
+    fetchQuotes();
   }, []);
 
   useEffect(() => {

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { DollarSign, Euro, Banknote, RefreshCcw, TrendingUp, TrendingDown } from 'lucide-react';
+import { DollarSign, Euro, Banknote, RefreshCcw, TrendingUp } from 'lucide-react';
 
 interface Quote {
   compra: number;

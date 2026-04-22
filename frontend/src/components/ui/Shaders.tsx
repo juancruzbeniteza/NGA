@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -19,7 +19,8 @@ const ParticleField = () => {
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
     mesh.current.rotation.y = time * 0.05;
-    mesh.current.rotation.x = time * 0.02;
+    mesh.current.rotation.z = Math.sin(time * 0.1) * 0.1;
+    mesh.current.position.y = Math.sin(time * 0.5) * 0.1;
   });
 
   return (
@@ -27,6 +28,7 @@ const ParticleField = () => {
       <bufferGeometry>
         <bufferAttribute
           attach="attributes-position"
+          args={[particles, 3]}
           count={particles.length / 3}
           array={particles}
           itemSize={3}

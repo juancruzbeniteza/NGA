@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DollarSign, Euro, Banknote, TrendingUp, RefreshCcw, Landmark, ArrowUpRight, TrendingDown, Briefcase } from 'lucide-react';
-import { AreaChart, Area, ResponsiveContainer, YAxis, Tooltip } from 'recharts';
+import { DollarSign, Euro, Banknote, RefreshCcw, Landmark, Briefcase } from 'lucide-react';
+import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 
 const dummyData = [
   { time: '09:00', value: 950 }, { time: '10:00', value: 965 }, 
@@ -11,8 +11,22 @@ const dummyData = [
   { time: '15:00', value: 980 }, { time: '16:00', value: 1000 }
 ];
 
-const MarketCard = ({ title, data, icon: Icon, color, chartData, index, type = 'currency', subtitle }: any) => {
-  const isUp = true; 
+const MarketCardSkeleton = () => (
+  <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-slate-100 h-[400px] animate-pulse flex flex-col justify-between">
+    <div>
+      <div className="w-12 h-12 bg-slate-100 rounded-xl mb-6" />
+      <div className="w-24 h-4 bg-slate-100 rounded mb-4" />
+      <div className="w-48 h-10 bg-slate-100 rounded mb-8" />
+      <div className="w-full h-20 bg-slate-50 rounded-2xl" />
+    </div>
+    <div className="grid grid-cols-2 gap-4 pt-6 border-t border-slate-50">
+      <div className="w-20 h-8 bg-slate-50 rounded" />
+      <div className="w-20 h-8 bg-slate-50 rounded ml-auto" />
+    </div>
+  </div>
+);
+
+const MarketCard = ({ title, data, icon: Icon, chartData, index, type = 'currency' }: any) => {
   const formatter = new Intl.NumberFormat('es-AR', { 
     style: 'currency', 
     currency: type === 'bond' ? 'USD' : 'ARS',
@@ -96,6 +110,7 @@ const MarketCard = ({ title, data, icon: Icon, color, chartData, index, type = '
 
 export const Market = () => {
   const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState('');
   const [activeTab, setActiveTab] = useState('divisas');
 
@@ -118,6 +133,8 @@ export const Market = () => {
             { ticker: "GGAL", nombre: "Galicia", precio: 4850.50, variacion: "+2.4%", sector: "Bancario" }
           ]
         });
+      } finally {
+        setLoading(false);
       }
     };
     fetch();
@@ -151,7 +168,7 @@ export const Market = () => {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-6 md:px-10 py-3 md:py-4 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${
+                className={`px-4 md:px-10 py-3 md:py-4 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] md:tracking-[0.2em] transition-all whitespace-nowrap ${
                   activeTab === tab 
                     ? 'bg-blue-600 text-white shadow-lg' 
                     : 'text-slate-400 hover:text-slate-900'
@@ -165,45 +182,55 @@ export const Market = () => {
 
         <AnimatePresence mode="wait">
           <motion.div 
-            key={activeTab}
+            key={activeTab + (loading ? '-loading' : '-ready')}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"
           >
-            {activeTab === 'divisas' && (
+            {loading ? (
               <>
-                <MarketCard index={0} title="Dólar Blue" data={data?.dolar} icon={DollarSign} color="bg-blue-600" chartData={dummyData} />
-                <MarketCard index={1} title="Euro Oficial" data={data?.euro} icon={Euro} color="bg-blue-600" chartData={dummyData.map((d:any) => ({ ...d, value: d.value + 80 }))} />
-                <MarketCard index={2} title="Real" data={data?.real} icon={Banknote} color="bg-blue-600" chartData={dummyData.map((d:any) => ({ ...d, value: d.value / 4.5 }))} />
+                <MarketCardSkeleton />
+                <MarketCardSkeleton />
+                <MarketCardSkeleton />
+              </>
+            ) : (
+              <>
+                {activeTab === 'divisas' && (
+                  <>
+                    <MarketCard index={0} title="Dólar Blue" data={data?.dolar} icon={DollarSign} color="bg-blue-600" chartData={dummyData} />
+                    <MarketCard index={1} title="Euro Oficial" data={data?.euro} icon={Euro} color="bg-blue-600" chartData={dummyData.map((d:any) => ({ ...d, value: d.value + 80 }))} />
+                    <MarketCard index={2} title="Real" data={data?.real} icon={Banknote} color="bg-blue-600" chartData={dummyData.map((d:any) => ({ ...d, value: d.value / 4.5 }))} />
+                  </>
+                )}
+                {activeTab === 'bonos' && data?.bonds?.map((bond: any, i: number) => (
+                  <MarketCard 
+                    key={bond.ticker} 
+                    index={i} 
+                    title={bond.ticker} 
+                    data={bond} 
+                    icon={Landmark} 
+                    color="bg-blue-600" 
+                    type="bond"
+                    subtitle={bond.nombre}
+                    chartData={dummyData.map((d:any) => ({ ...d, value: 50 + Math.random() * 5 }))}
+                  />
+                ))}
+                {activeTab === 'acciones' && data?.stocks?.map((stock: any, i: number) => (
+                  <MarketCard 
+                    key={stock.ticker} 
+                    index={i} 
+                    title={stock.ticker} 
+                    data={stock} 
+                    icon={Briefcase} 
+                    color="bg-blue-600" 
+                    type="stock"
+                    subtitle={stock.nombre}
+                    chartData={dummyData.map((d:any) => ({ ...d, value: 4000 + Math.random() * 1000 }))}
+                  />
+                ))}
               </>
             )}
-            {activeTab === 'bonos' && data?.bonds?.map((bond: any, i: number) => (
-              <MarketCard 
-                key={bond.ticker} 
-                index={i} 
-                title={bond.ticker} 
-                data={bond} 
-                icon={Landmark} 
-                color="bg-blue-600" 
-                type="bond"
-                subtitle={bond.nombre}
-                chartData={dummyData.map((d:any) => ({ ...d, value: 50 + Math.random() * 5 }))}
-              />
-            ))}
-            {activeTab === 'acciones' && data?.stocks?.map((stock: any, i: number) => (
-              <MarketCard 
-                key={stock.ticker} 
-                index={i} 
-                title={stock.ticker} 
-                data={stock} 
-                icon={Briefcase} 
-                color="bg-blue-600" 
-                type="stock"
-                subtitle={stock.nombre}
-                chartData={dummyData.map((d:any) => ({ ...d, value: 4000 + Math.random() * 1000 }))}
-              />
-            ))}
           </motion.div>
         </AnimatePresence>
 
