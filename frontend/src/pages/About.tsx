@@ -99,7 +99,7 @@ const About = () => {
                    <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-blue-400">
                       <MapPin size={20} />
                    </div>
-                   <span className="font-bold text-lg">Rosario, Santa Fe, Argentina</span>
+                   <span className="font-bold text-lg">Mitre 630, Rosario, Santa Fe</span>
                 </div>
                 <div className="flex items-center space-x-4">
                    <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-blue-400">
@@ -109,8 +109,17 @@ const About = () => {
                 </div>
               </div>
             </div>
-            <div className="h-96 bg-white/5 rounded-[3rem] border border-white/10 flex items-center justify-center">
-               <span className="text-slate-600 font-black uppercase tracking-widest italic">Mapa Interactivo Próximamente</span>
+            <div className="h-96 w-full bg-white/5 rounded-[3rem] border border-white/10 overflow-hidden relative shadow-2xl">
+               <iframe 
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3348.164843054176!2d-60.64167382431771!3d-32.94660307359336!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95b7ab1df8434771%3A0x6334969b76c026!2sMitre%20630%2C%20S2000%20Rosario%2C%20Santa%20Fe!5e0!3m2!1ses-419!2sar!4v1713800000000!5m2!1ses-419!2sar" 
+                width="100%" 
+                height="100%" 
+                style={{ border: 0, filter: 'grayscale(1) invert(0.9) contrast(1.2)' }} 
+                allowFullScreen={true} 
+                loading="lazy" 
+                referrerPolicy="no-referrer-when-downgrade"
+                className="opacity-80 hover:opacity-100 transition-opacity duration-500"
+               />
             </div>
           </div>
         </div>
