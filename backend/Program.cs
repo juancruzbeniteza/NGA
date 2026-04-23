@@ -29,7 +29,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     }
     else 
     {
-        // Fix for Supabase/Render connection strings
         if (connectionString.StartsWith("postgres://")) {
             connectionString = connectionString.Replace("postgres://", "postgresql://");
         }
@@ -63,7 +62,7 @@ using (var scope = app.Services.CreateScope())
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.Database.EnsureCreated();
     } catch (Exception ex) {
-        Console.WriteLine($"DB Initialization Warning: {ex.Message}");
+        Console.WriteLine($"DB Initialization Error: {ex.Message}");
     }
 }
 
@@ -71,11 +70,16 @@ app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors("AllowAll");
 
-app.MapGet("/", () => Results.Ok(new { status = "NGA Online", time = DateTime.Now }));
+app.MapGet("/", () => Results.Ok(new { status = "NGA Online", time = DateTime.Now, database = string.IsNullOrEmpty(connectionString) ? "SQLite" : "Postgres" }));
 
 app.MapGet("/api/quotes", async (IHttpClientFactory httpClientFactory) =>
 {
-    return Results.Ok(await FetchMarketData(httpClientFactory.CreateClient()));
+    try {
+        var data = await FetchMarketData(httpClientFactory.CreateClient());
+        return Results.Ok(data);
+    } catch (Exception ex) {
+        return Results.Problem(ex.Message);
+    }
 })
 .WithName("GetQuotes");
 
@@ -85,14 +89,16 @@ app.MapPost("/api/subscribe", async (SubscriptionRequest request, AppDbContext d
         return Results.BadRequest(new { success = false, message = "Email inválido" });
 
     try {
-        if (await db.Subscriptions.AnyAsync(s => s.Email == request.Email))
+        var exists = await db.Subscriptions.AnyAsync(s => s.Email == request.Email);
+        if (exists)
             return Results.Ok(new { success = true, message = "Ya estás suscrito" });
 
         db.Subscriptions.Add(new Subscription { Email = request.Email });
         await db.SaveChangesAsync();
         return Results.Ok(new { success = true, message = "Suscripción exitosa" });
     } catch (Exception ex) {
-        return Results.Problem(ex.Message);
+        // Return full error to debug in production
+        return Results.Json(new { success = false, message = "Error de base de datos", detail = ex.Message, inner = ex.InnerException?.Message }, statusCode: 500);
     }
 });
 
@@ -103,7 +109,7 @@ app.MapGet("/api/test-send", async (string email, IFluentEmail fluentEmail, IHtt
         var marketData = await new MarketDataFetcher(httpClientFactory).Fetch(client);
         string token = Convert.ToBase64String(Encoding.UTF8.GetBytes(email));
         var result = await fluentEmail.To(email).Subject("📊 NGA Inversiones - Test").Body(new WeeklyReportService(null!, httpClientFactory).BuildEmailTemplateManual(marketData, token), true).SendAsync();
-        return result.Successful ? Results.Ok(new { success = true }) : Results.Problem("Error");
+        return result.Successful ? Results.Ok(new { success = true }) : Results.Problem("Error de SMTP");
     } catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
@@ -195,10 +201,12 @@ public class MarketDataFetcher {
         var s = await client.GetFromJsonAsync<List<MarketData912>>("https://data912.com/live/arg_stocks");
         var bo = await client.GetFromJsonAsync<List<MarketData912>>("https://data912.com/live/arg_bonds");
         var targetB = new[] { "AL30", "GD30", "AL29", "AE38", "GD35", "AL41" };
-        var bonds = bo.Where(x => targetB.Contains(x.Symbol)).Select(x => new BondInfo(x.Symbol, x.Symbol, x.PxBid, x.PxAsk, x.PctChange.ToString())).ToList();
+        var boData = bo ?? new List<MarketData912>();
+        var bonds = boData.Where(x => targetB.Contains(x.Symbol)).Select(x => new BondInfo(x.Symbol, x.Symbol, x.PxBid, x.PxAsk, x.PctChange.ToString())).ToList();
         var targetS = new[] { "GGAL", "YPFD", "PAMP", "ALUA", "BMA", "LOMA", "EDN", "TXAR", "CEPU", "COME" };
-        var stocks = s.Where(x => targetS.Contains(x.Symbol)).Select(x => new StockInfo(x.Symbol, x.Symbol, x.LastPrice, x.PctChange.ToString(), "Sector")).ToList();
-        return new MarketDataResponse(new Quote(b.Compra, b.Venta), new Quote(e.Compra, e.Venta), new Quote(r.Compra, r.Venta), bonds, stocks);
+        var sData = s ?? new List<MarketData912>();
+        var stocks = sData.Where(x => targetS.Contains(x.Symbol)).Select(x => new StockInfo(x.Symbol, x.Symbol, x.LastPrice, x.PctChange.ToString(), "Sector")).ToList();
+        return new MarketDataResponse(new Quote(b?.Compra ?? 0, b?.Venta ?? 0), new Quote(e?.Compra ?? 0, e?.Venta ?? 0), new Quote(r?.Compra ?? 0, r?.Venta ?? 0), bonds, stocks);
     }
 }
 
