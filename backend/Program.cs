@@ -19,25 +19,28 @@ using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// DATABASE CONNECTION BUILDER (Pooler Compatible)
+// DATABASE CONNECTION (The most robust way)
 string GetConnectionString(string? url)
 {
     if (string.IsNullOrEmpty(url)) return "Data Source=nga_inversiones.db";
-    if (!url.Contains("://")) return url;
+    
+    // Si ya es una connection string de C#, la devolvemos tal cual
+    if (url.Contains("Host=") && url.Contains("User Id=")) return url;
 
     try {
-        var uri = new Uri(url);
-        var userInfo = uri.UserInfo.Split(':');
-        var user = userInfo[0];
-        var pass = userInfo[1];
-        var host = uri.Host;
-        var port = uri.Port > 0 ? uri.Port : 5432;
-        var db = uri.AbsolutePath.Trim('/');
-
-        // Pooling=false is REQUIRED for Supabase Transaction Mode (Port 6543)
-        return $"Host={host};Port={port};Database={db};Username={user};Password={pass};SSL Mode=Require;Trust Server Certificate=true;Pooling=false;Timeout=60";
-    } catch {
-        return url;
+        // Usamos NpgsqlConnectionStringBuilder para parsear la URL postgres://
+        var npgsqlBuilder = new NpgsqlConnectionStringBuilder(url)
+        {
+            SslMode = SslMode.Require,
+            TrustServerCertificate = true,
+            Pooling = false, // Obligatorio para Supabase Transaction Mode
+            Timeout = 60,
+            CommandTimeout = 60
+        };
+        return npgsqlBuilder.ToString();
+    } catch (Exception ex) {
+        Console.WriteLine($"ConnString Parse Error: {ex.Message}");
+        return url; // Fallback
     }
 }
 
@@ -75,7 +78,7 @@ using (var scope = app.Services.CreateScope())
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.Database.EnsureCreated();
     } catch (Exception ex) {
-        Console.WriteLine($"DB Error: {ex.Message}");
+        Console.WriteLine($"Startup DB Error: {ex.Message}");
     }
 }
 
