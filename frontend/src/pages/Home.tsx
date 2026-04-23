@@ -1,6 +1,8 @@
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Landmark, ArrowUpRight, BarChart3, Zap, Briefcase } from 'lucide-react';
+import { ArrowRight, Landmark, ArrowUpRight, BarChart3, Zap, Briefcase, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import { BackgroundShaders } from '../components/ui/Shaders';
 
 const containerVariants = {
@@ -102,6 +104,26 @@ const Hero = () => {
 };
 
 const MarketInsights = () => {
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [message, setMessage] = useState('');
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+
+    setStatus('loading');
+    try {
+      const response = await axios.post('http://localhost:5023/api/subscribe', { email });
+      setStatus('success');
+      setMessage(response.data.message || '¡Gracias por suscribirte!');
+      setEmail('');
+    } catch (error: any) {
+      setStatus('error');
+      setMessage(error.response?.data?.message || 'Hubo un error. Intentalo de nuevo.');
+    }
+  };
+
   return (
     <>
       <section className="py-32 bg-white relative overflow-hidden">
@@ -178,15 +200,34 @@ const MarketInsights = () => {
                 <p className="text-blue-100 text-xl font-medium">Suscribite y recibí nuestro análisis exclusivo sobre el mercado cambiario y bursátil argentino todos los viernes.</p>
               </div>
               
-              <div className="w-full lg:w-auto bg-white/10 backdrop-blur-xl p-2 rounded-[2.5rem] border border-white/20 flex flex-col sm:flex-row gap-2">
-                <input 
-                  type="email" 
-                  placeholder="Tu correo electrónico" 
-                  className="bg-transparent border-none px-6 md:px-8 py-4 md:py-5 text-white placeholder:text-blue-200 focus:outline-none w-full sm:w-80 font-bold text-sm md:text-base"
-                />
-                <button className="bg-white text-blue-600 px-8 md:px-10 py-4 md:py-5 rounded-[2rem] font-black uppercase italic tracking-tighter hover:bg-blue-50 transition-all whitespace-nowrap text-sm md:text-base">
-                  Suscribirme
-                </button>
+              <div className="flex flex-col gap-4">
+                <form onSubmit={handleSubscribe} className="w-full lg:w-auto bg-white/10 backdrop-blur-xl p-2 rounded-[2.5rem] border border-white/20 flex flex-col sm:flex-row gap-2">
+                  <input 
+                    type="email" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Tu correo electrónico" 
+                    required
+                    className="bg-transparent border-none px-6 md:px-8 py-4 md:py-5 text-white placeholder:text-blue-200 focus:outline-none w-full sm:w-80 font-bold text-sm md:text-base"
+                  />
+                  <button 
+                    type="submit"
+                    disabled={status === 'loading'}
+                    className="bg-white text-blue-600 px-8 md:px-10 py-4 md:py-5 rounded-[2rem] font-black uppercase italic tracking-tighter hover:bg-blue-50 transition-all whitespace-nowrap text-sm md:text-base disabled:opacity-50"
+                  >
+                    {status === 'loading' ? 'Enviando...' : 'Suscribirme'}
+                  </button>
+                </form>
+                {status !== 'idle' && status !== 'loading' && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-4 rounded-2xl flex items-center justify-center space-x-3 ${status === 'success' ? 'bg-emerald-500/20 text-emerald-100' : 'bg-rose-500/20 text-rose-100'}`}
+                  >
+                    {status === 'success' && <CheckCircle2 size={20} />}
+                    <span className="font-bold">{message}</span>
+                  </motion.div>
+                )}
               </div>
             </div>
           </div>
