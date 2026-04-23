@@ -15,23 +15,32 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Text;
 using Microsoft.Extensions.Configuration;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database Configuration - PostgreSQL (Supabase)
-var connectionString = builder.Configuration["DATABASE_URL"];
+// DATABASE URL CONVERTER (URL to C# Connection String)
+string GetConnectionString(string? url)
+{
+    if (string.IsNullOrEmpty(url)) return "Data Source=nga_inversiones.db";
+    if (!url.Contains("://")) return url;
+
+    try {
+        var uri = new Uri(url);
+        var userInfo = uri.UserInfo.Split(':');
+        return $"Host={uri.Host};Database={uri.AbsolutePath.Trim('/')};Username={userInfo[0]};Password={userInfo[1]};Port={uri.Port};SSL Mode=Require;Trust Server Certificate=true";
+    } catch {
+        return url; // Fallback
+    }
+}
+
+var connectionString = GetConnectionString(builder.Configuration["DATABASE_URL"]);
 
 builder.Services.AddDbContext<AppDbContext>(options => 
 {
-    if (string.IsNullOrEmpty(connectionString))
-    {
-        options.UseSqlite("Data Source=nga_inversiones.db");
-    }
-    else 
-    {
-        if (connectionString.StartsWith("postgres://")) {
-            connectionString = connectionString.Replace("postgres://", "postgresql://");
-        }
+    if (connectionString.Contains("Data Source=")) {
+        options.UseSqlite(connectionString);
+    } else {
         options.UseNpgsql(connectionString);
     }
 });
@@ -50,19 +59,23 @@ builder.Services
 builder.Services.AddHttpClient();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddCors(options => { options.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()); });
+
+// Robust CORS
+builder.Services.AddCors(options => { 
+    options.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()); 
+});
+
 builder.Services.AddHostedService<WeeklyReportService>();
 
 var app = builder.Build();
 
-// Resilient database creation
 using (var scope = app.Services.CreateScope())
 {
     try {
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.Database.EnsureCreated();
     } catch (Exception ex) {
-        Console.WriteLine($"DB Initialization Error: {ex.Message}");
+        Console.WriteLine($"DB Error: {ex.Message}");
     }
 }
 
@@ -70,7 +83,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors("AllowAll");
 
-app.MapGet("/", () => Results.Ok(new { status = "NGA Online", time = DateTime.Now, database = string.IsNullOrEmpty(connectionString) ? "SQLite" : "Postgres" }));
+app.MapGet("/", () => Results.Ok(new { status = "NGA Online", time = DateTime.Now }));
 
 app.MapGet("/api/quotes", async (IHttpClientFactory httpClientFactory) =>
 {
@@ -80,8 +93,7 @@ app.MapGet("/api/quotes", async (IHttpClientFactory httpClientFactory) =>
     } catch (Exception ex) {
         return Results.Problem(ex.Message);
     }
-})
-.WithName("GetQuotes");
+});
 
 app.MapPost("/api/subscribe", async (SubscriptionRequest request, AppDbContext db) =>
 {
@@ -90,15 +102,13 @@ app.MapPost("/api/subscribe", async (SubscriptionRequest request, AppDbContext d
 
     try {
         var exists = await db.Subscriptions.AnyAsync(s => s.Email == request.Email);
-        if (exists)
-            return Results.Ok(new { success = true, message = "Ya estás suscrito" });
+        if (exists) return Results.Ok(new { success = true, message = "Ya estás suscrito" });
 
         db.Subscriptions.Add(new Subscription { Email = request.Email });
         await db.SaveChangesAsync();
         return Results.Ok(new { success = true, message = "Suscripción exitosa" });
     } catch (Exception ex) {
-        // Return full error to debug in production
-        return Results.Json(new { success = false, message = "Error de base de datos", detail = ex.Message, inner = ex.InnerException?.Message }, statusCode: 500);
+        return Results.Json(new { success = false, message = "Error de conexión", detail = ex.Message }, statusCode: 500);
     }
 });
 
@@ -108,8 +118,8 @@ app.MapGet("/api/test-send", async (string email, IFluentEmail fluentEmail, IHtt
         var client = httpClientFactory.CreateClient();
         var marketData = await new MarketDataFetcher(httpClientFactory).Fetch(client);
         string token = Convert.ToBase64String(Encoding.UTF8.GetBytes(email));
-        var result = await fluentEmail.To(email).Subject("📊 NGA Inversiones - Test").Body(new WeeklyReportService(null!, httpClientFactory).BuildEmailTemplateManual(marketData, token), true).SendAsync();
-        return result.Successful ? Results.Ok(new { success = true }) : Results.Problem("Error de SMTP");
+        var result = await fluentEmail.To(email).Subject("📊 NGA Test").Body(new WeeklyReportService(null!, httpClientFactory).BuildEmailTemplateManual(marketData, token), true).SendAsync();
+        return result.Successful ? Results.Ok(new { success = true }) : Results.Problem("SMTP Error");
     } catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
@@ -129,7 +139,7 @@ app.Run();
 async Task<MarketDataResponse> FetchMarketData(HttpClient client)
 {
     client.DefaultRequestHeaders.Clear();
-    client.DefaultRequestHeaders.Add("User-Agent", "NGA-Inversiones-App");
+    client.DefaultRequestHeaders.Add("User-Agent", "NGA-App");
     try {
         var blueTask = client.GetFromJsonAsync<DolarApiResponse>("https://dolarapi.com/v1/dolares/blue");
         var euroTask = client.GetFromJsonAsync<DolarApiResponse>("https://dolarapi.com/v1/cotizaciones/eur");
@@ -138,11 +148,11 @@ async Task<MarketDataResponse> FetchMarketData(HttpClient client)
         var bondsTask = client.GetFromJsonAsync<List<MarketData912>>("https://data912.com/live/arg_bonds");
         await Task.WhenAll(blueTask, euroTask, realTask, stocksTask, bondsTask);
         var blue = await blueTask; var euro = await euroTask; var real = await realTask;
-        var rawStocks = await stocksTask ?? new List<MarketData912>();
-        var rawBonds = await bondsTask ?? new List<MarketData912>();
         var targetBonds = new[] { "AL30", "GD30", "AL29", "AE38", "GD35", "AL41" };
+        var rawBonds = await bondsTask ?? new List<MarketData912>();
         var bonds = rawBonds.Where(b => targetBonds.Contains(b.Symbol)).Select(b => new BondInfo(b.Symbol, GetBondName(b.Symbol), b.PxBid, b.PxAsk, $"{(b.PctChange >= 0 ? "+" : "")}{b.PctChange:F2}%")).ToList();
         var targetStocks = new[] { "GGAL", "YPFD", "PAMP", "ALUA", "BMA", "LOMA", "EDN", "TXAR", "CEPU", "COME" };
+        var rawStocks = await stocksTask ?? new List<MarketData912>();
         var stocks = rawStocks.Where(s => targetStocks.Contains(s.Symbol)).Select(s => new StockInfo(s.Symbol, GetStockName(s.Symbol), s.LastPrice, $"{(s.PctChange >= 0 ? "+" : "")}{s.PctChange:F2}%", GetStockSector(s.Symbol))).ToList();
         return new MarketDataResponse(new Quote(blue?.Compra ?? 0, blue?.Venta ?? 0), new Quote(euro?.Compra ?? 0, euro?.Venta ?? 0), new Quote(real?.Compra ?? 0, real?.Venta ?? 0), bonds, stocks);
     } catch { return new MarketDataResponse(new Quote(0, 0), new Quote(0, 0), new Quote(0, 0), new(), new()); }
@@ -178,7 +188,7 @@ public class WeeklyReportService : BackgroundService
         foreach (var sub in subscribers) {
             try {
                 string token = Convert.ToBase64String(Encoding.UTF8.GetBytes(sub.Email));
-                await fluentEmail.To(sub.Email).Subject("📊 NGA Inversiones - Cierre de Mercado Semanal").Body(BuildEmailTemplate(marketData, token), true).SendAsync();
+                await fluentEmail.To(sub.Email).Subject("📊 NGA Cierre Semanal").Body(BuildEmailTemplate(marketData, token), true).SendAsync();
             } catch (Exception ex) { Console.WriteLine(ex.Message); }
         }
     }
@@ -202,10 +212,10 @@ public class MarketDataFetcher {
         var bo = await client.GetFromJsonAsync<List<MarketData912>>("https://data912.com/live/arg_bonds");
         var targetB = new[] { "AL30", "GD30", "AL29", "AE38", "GD35", "AL41" };
         var boData = bo ?? new List<MarketData912>();
-        var bonds = boData.Where(x => targetB.Contains(x.Symbol)).Select(x => new BondInfo(x.Symbol, x.Symbol, x.PxBid, x.PxAsk, x.PctChange.ToString())).ToList();
+        var bonds = boData.Where(x => targetB.Contains(x.Symbol)).Select(x => new BondInfo(x.Symbol, x.Symbol, x.PxBid, x.PxAsk, $"{(x.PctChange >= 0 ? "+" : "")}{x.PctChange:F2}%")).ToList();
         var targetS = new[] { "GGAL", "YPFD", "PAMP", "ALUA", "BMA", "LOMA", "EDN", "TXAR", "CEPU", "COME" };
         var sData = s ?? new List<MarketData912>();
-        var stocks = sData.Where(x => targetS.Contains(x.Symbol)).Select(x => new StockInfo(x.Symbol, x.Symbol, x.LastPrice, x.PctChange.ToString(), "Sector")).ToList();
+        var stocks = sData.Where(x => targetS.Contains(x.Symbol)).Select(x => new StockInfo(x.Symbol, x.Symbol, x.LastPrice, $"{(x.PctChange >= 0 ? "+" : "")}{x.PctChange:F2}%", "Sector")).ToList();
         return new MarketDataResponse(new Quote(b?.Compra ?? 0, b?.Venta ?? 0), new Quote(e?.Compra ?? 0, e?.Venta ?? 0), new Quote(r?.Compra ?? 0, r?.Venta ?? 0), bonds, stocks);
     }
 }
