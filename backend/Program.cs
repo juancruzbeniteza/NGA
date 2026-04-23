@@ -26,7 +26,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 {
     if (string.IsNullOrEmpty(connectionString))
     {
-        // Fallback to SQLite for local development if no Postgres is provided
         options.UseSqlite("Data Source=nga_inversiones.db");
     }
     else 
@@ -35,7 +34,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     }
 });
 
-// SMTP Configuration from appsettings.json or Environment Variables
+// SMTP Configuration
 var smtpConfig = builder.Configuration.GetSection("Smtp");
 builder.Services
     .AddFluentEmail(smtpConfig["FromEmail"] ?? "info@ngainversiones.com.ar", smtpConfig["FromName"] ?? "NGA Inversiones")
@@ -49,11 +48,15 @@ builder.Services
 builder.Services.AddHttpClient();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Robust CORS for Production
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
+    options.AddPolicy("ProductionCors", policy =>
     {
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        policy.AllowAnyOrigin() // Allow all origins for testing, can be restricted later
+              .AllowAnyHeader()
+              .AllowAnyMethod();
     });
 });
 
@@ -64,13 +67,15 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    // Automatically apply migrations/create schema
     db.Database.EnsureCreated();
 }
 
 app.UseSwagger();
 app.UseSwaggerUI();
-app.UseCors();
+app.UseCors("ProductionCors");
+
+// Health Check
+app.MapGet("/", () => Results.Ok(new { status = "NGA Backend is running", time = DateTime.Now }));
 
 app.MapGet("/api/quotes", async (IHttpClientFactory httpClientFactory) =>
 {
@@ -81,18 +86,21 @@ app.MapGet("/api/quotes", async (IHttpClientFactory httpClientFactory) =>
 app.MapPost("/api/subscribe", async (SubscriptionRequest request, AppDbContext db) =>
 {
     if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains("@"))
-        return Results.BadRequest(new { message = "Email inválido" });
+        return Results.BadRequest(new { success = false, message = "Email inválido" });
 
-    if (await db.Subscriptions.AnyAsync(s => s.Email == request.Email))
-        return Results.Ok(new { message = "Ya estás suscrito" });
+    try {
+        if (await db.Subscriptions.AnyAsync(s => s.Email == request.Email))
+            return Results.Ok(new { success = true, message = "Ya estás suscrito" });
 
-    db.Subscriptions.Add(new Subscription { Email = request.Email });
-    await db.SaveChangesAsync();
+        db.Subscriptions.Add(new Subscription { Email = request.Email });
+        await db.SaveChangesAsync();
 
-    return Results.Ok(new { success = true, message = "Suscripción exitosa" });
+        return Results.Ok(new { success = true, message = "Suscripción exitosa" });
+    } catch (Exception ex) {
+        return Results.Problem(ex.Message);
+    }
 });
 
-// TEST ENDPOINT: Trigger manual email for testing
 app.MapGet("/api/test-send", async (string email, IFluentEmail fluentEmail, IHttpClientFactory httpClientFactory) =>
 {
     try {
@@ -142,7 +150,7 @@ app.MapGet("/api/unsubscribe", async (string token, AppDbContext db) =>
                         <div style='color: #2563eb; font-size: 64px; margin-bottom: 24px;'>{icon}</div>
                         <h1 style='color: #1e293b; margin-bottom: 12px; font-size: 24px; font-weight: 800;'>Estado de Suscripción</h1>
                         <p style='color: #64748b; line-height: 1.6; font-size: 16px;'>{message}</p>
-                        <a href='http://localhost:5173' style='display: inline-block; margin-top: 32px; background: #2563eb; color: white; padding: 12px 32px; border-radius: 12px; text-decoration: none; font-weight: 800; text-transform: uppercase; font-size: 12px; letter-spacing: 0.05em;'>Volver a NGA</a>
+                        <a href='/' style='display: inline-block; margin-top: 32px; background: #2563eb; color: white; padding: 12px 32px; border-radius: 12px; text-decoration: none; font-weight: 800; text-transform: uppercase; font-size: 12px; letter-spacing: 0.05em;'>Volver a NGA</a>
                     </div>
                 </body>
                 </html>", "text/html");
@@ -150,12 +158,6 @@ app.MapGet("/api/unsubscribe", async (string token, AppDbContext db) =>
         return Results.BadRequest("Token inválido");
     }
 });
-
-app.MapPost("/api/contact", (ContactRequest request) =>
-{
-    return Results.Ok(new { success = true, message = "Mensaje recibido" });
-})
-.WithName("PostContact");
 
 app.Run();
 
