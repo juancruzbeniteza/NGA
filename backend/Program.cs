@@ -72,7 +72,6 @@ app.MapPost("/api/subscribe", async (SubscriptionRequest request, AppDbContext d
         return Results.BadRequest(new { success = false, message = "Email inválido" });
 
     try {
-        // 1. Intentar Guardar Normal
         var exists = await db.Subscriptions.AnyAsync(s => s.Email == request.Email);
         if (!exists) {
             db.Subscriptions.Add(new Subscription { Email = request.Email });
@@ -81,14 +80,10 @@ app.MapPost("/api/subscribe", async (SubscriptionRequest request, AppDbContext d
         return Results.Ok(new { success = true, message = "Suscripción Exitosa" });
     } 
     catch (Exception ex) {
-        // 2. FALLOVER: Registrar en archivo local para que el Agente Gemini lo sincronice luego
         try {
             string logPath = Path.Combine(AppContext.BaseDirectory, "failover_subscriptions.log");
             await File.AppendAllTextAsync(logPath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}|{request.Email}{Environment.NewLine}");
-            
-            // Enviar mail de aviso
             await fluentEmail.To("juancruzbeniteza@gmail.com").Subject("⚠️ Failover Activado").Body($"Error DB: {ex.Message}. Email guardado en log: {request.Email}").SendAsync();
-            
             return Results.Ok(new { success = true, message = "Suscripción recibida (Modo Contingencia)" });
         } catch {
             return Results.Json(new { success = false, message = "Error crítico" }, statusCode: 500);
@@ -103,7 +98,6 @@ app.MapGet("/api/quotes", async (IHttpClientFactory hf) => {
     } catch { return Results.Ok(new { error = "API Offline" }); }
 });
 
-// Admin endpoint for me to check the log
 app.MapGet("/api/admin/logs", () => {
     string logPath = Path.Combine(AppContext.BaseDirectory, "failover_subscriptions.log");
     return File.Exists(logPath) ? Results.Text(File.ReadAllText(logPath)) : Results.NotFound("No hay registros pendientes.");
@@ -118,15 +112,18 @@ public class MarketDataFetcher {
     public MarketDataFetcher(IHttpClientFactory hf) => _hf = hf;
     public async Task<MarketDataResponse> Fetch(HttpClient client) {
         client.DefaultRequestHeaders.Add("User-Agent", "NGA-App");
-        var b = await client.GetFromJsonAsync<DolarApiResponse>("https://dolarapi.com/v1/dolares/blue");
-        var e = await client.GetFromJsonAsync<DolarApiResponse>("https://dolarapi.com/v1/cotizaciones/eur");
-        var r = await client.GetFromJsonAsync<DolarApiResponse>("https://dolarapi.com/v1/cotizaciones/brl");
+        var blue = await client.GetFromJsonAsync<DolarApiResponse>("https://dolarapi.com/v1/dolares/blue");
+        var euro = await client.GetFromJsonAsync<DolarApiResponse>("https://dolarapi.com/v1/cotizaciones/eur");
+        var real = await client.GetFromJsonAsync<DolarApiResponse>("https://dolarapi.com/v1/cotizaciones/brl");
         var stocks = await client.GetFromJsonAsync<List<MarketData912>>("https://data912.com/live/arg_stocks");
         var bonds = await client.GetFromJsonAsync<List<MarketData912>>("https://data912.com/live/arg_bonds");
+        
         var targetB = new[] { "AL30", "GD30", "AL29", "AE38", "GD35", "AL41" };
         var bList = (bonds ?? new()).Where(x => targetB.Contains(x.Symbol)).Select(x => new BondInfo(x.Symbol, x.Symbol, x.PxBid, x.PxAsk, x.PctChange.ToString("F2") + "%")).ToList();
+        
         var targetS = new[] { "GGAL", "YPFD", "PAMP", "ALUA", "BMA", "LOMA", "EDN", "TXAR", "CEPU", "COME" };
         var sList = (stocks ?? new()).Where(x => targetS.Contains(x.Symbol)).Select(x => new StockInfo(x.Symbol, x.Symbol, x.LastPrice, x.PctChange.ToString("F2") + "%", "Merval")).ToList();
+        
         return new MarketDataResponse(new Quote(blue?.Compra ?? 0, blue?.Venta ?? 0), new Quote(euro?.Compra ?? 0, euro?.Venta ?? 0), new Quote(real?.Compra ?? 0, real?.Venta ?? 0), bList, sList);
     }
 }
@@ -145,7 +142,7 @@ public class WeeklyReportService : BackgroundService {
                 var subs = await db.Subscriptions.ToListAsync();
                 if (subs.Any()) {
                     var data = await new MarketDataFetcher(_hf).Fetch(_hf.CreateClient());
-                    foreach (var s in subs) await email.To(s.Email).Subject("📊 NGA Reporte").Body($"Dólar: {data.dolar.venta}").SendAsync();
+                    foreach (var s in subs) await email.To(s.Email).Subject("📊 NGA Reporte Semanal").Body($"Dólar: {data.dolar.venta}").SendAsync();
                 }
                 await Task.Delay(TimeSpan.FromHours(24), st);
             }
