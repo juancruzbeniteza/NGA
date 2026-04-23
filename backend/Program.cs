@@ -17,25 +17,33 @@ using System.Threading.Tasks;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
+using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- DB CONFIG ---
-string GetConnectionString(string? input) {
-    if (string.IsNullOrEmpty(input)) return "Data Source=nga_inversiones.db";
-    if (input.Contains("Server=") || (input.Contains("Host=") && input.Contains("Password="))) return input;
+// --- DB CONFIG (AUTO-RESCUE) ---
+string GetConnectionString(string? envUrl) {
+    // 1. Si no hay nada en Render, usamos el "Puenting" directo a Supabase
+    if (string.IsNullOrEmpty(envUrl)) {
+        return "Host=aws-1-us-west-2.pooler.supabase.com;Port=6543;Database=postgres;Username=postgres.yfsszfmmoakdjatsxnje;Password=Tatub.200412;SSL Mode=Require;Trust Server Certificate=true;Pooling=false;Timeout=300";
+    }
+
+    // 2. Si hay algo, intentamos parsearlo
     try {
-        var uri = new Uri(input);
+        if (envUrl.Contains("Host=") || envUrl.Contains("Server=")) return envUrl;
+        var uri = new Uri(envUrl);
         var userInfo = uri.UserInfo.Split(':');
-        return $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.Trim('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true;Pooling=false;Timeout=30";
-    } catch { return input; }
+        return $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.Trim('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true;Pooling=false;Timeout=300";
+    } catch {
+        // Fallback al Puenting si el parseo falla
+        return "Host=aws-1-us-west-2.pooler.supabase.com;Port=6543;Database=postgres;Username=postgres.yfsszfmmoakdjatsxnje;Password=Tatub.200412;SSL Mode=Require;Trust Server Certificate=true;Pooling=false;Timeout=300";
+    }
 }
 
 var connectionString = GetConnectionString(builder.Configuration["DATABASE_URL"]);
 
 builder.Services.AddDbContext<AppDbContext>(options => {
-    if (connectionString.Contains("Data Source=")) options.UseSqlite(connectionString);
-    else options.UseNpgsql(connectionString, o => o.EnableRetryOnFailure(2));
+    options.UseNpgsql(connectionString, o => o.EnableRetryOnFailure(5));
 });
 
 // --- SERVICES ---
@@ -45,7 +53,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options => { options.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()); });
 builder.Services.AddHostedService<WeeklyReportService>();
 
-builder.Services.AddFluentEmail("juancruzbeniteza@gmail.com", "NGA System")
+builder.Services.AddFluentEmail("juancruzbeniteza@gmail.com", "NGA Inversiones")
     .AddRazorRenderer()
     .AddSmtpSender(new SmtpClient("smtp.gmail.com") { 
         Port = 587, 
@@ -55,17 +63,27 @@ builder.Services.AddFluentEmail("juancruzbeniteza@gmail.com", "NGA System")
 
 var app = builder.Build();
 
+// --- DIAGNOSTICS & SETUP ---
 using (var scope = app.Services.CreateScope()) {
-    try { scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreated(); } catch {}
+    try {
+        // Diagnostic: DNS check
+        var host = "aws-1-us-west-2.pooler.supabase.com";
+        var ips = Dns.GetHostAddresses(host);
+        Console.WriteLine($"[DIAG] Resolved {host} to: {string.Join(", ", ips.Select(i => i.ToString()))}");
+        
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Database.EnsureCreated();
+        Console.WriteLine("[DIAG] Database connected and ready.");
+    } catch (Exception ex) {
+        Console.WriteLine($"[DIAG] Critical DB Error: {ex.Message}");
+    }
 }
 
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors("AllowAll");
 
-// --- ENDPOINTS ---
-
-app.MapGet("/", () => Results.Ok(new { status = "NGA Online", database = connectionString.Contains("Host") ? "Postgres" : "SQLite" }));
+app.MapGet("/", () => Results.Ok(new { status = "NGA Online", mode = "Production Rescue" }));
 
 app.MapPost("/api/subscribe", async (SubscriptionRequest request, AppDbContext db, IFluentEmail fluentEmail) => {
     if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains("@"))
@@ -78,16 +96,14 @@ app.MapPost("/api/subscribe", async (SubscriptionRequest request, AppDbContext d
             await db.SaveChangesAsync();
         }
         return Results.Ok(new { success = true, message = "Suscripción Exitosa" });
-    } 
-    catch (Exception ex) {
+    } catch (Exception ex) {
+        // Failover logging
         try {
-            string logPath = Path.Combine(AppContext.BaseDirectory, "failover_subscriptions.log");
-            await File.AppendAllTextAsync(logPath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}|{request.Email}{Environment.NewLine}");
-            await fluentEmail.To("juancruzbeniteza@gmail.com").Subject("⚠️ Failover Activado").Body($"Error DB: {ex.Message}. Email guardado en log: {request.Email}").SendAsync();
-            return Results.Ok(new { success = true, message = "Suscripción recibida (Modo Contingencia)" });
-        } catch {
-            return Results.Json(new { success = false, message = "Error crítico" }, statusCode: 500);
-        }
+            string logPath = Path.Combine(AppContext.BaseDirectory, "failover.log");
+            await File.AppendAllTextAsync(logPath, $"{DateTime.Now}|{request.Email}{Environment.NewLine}");
+            await fluentEmail.To("juancruzbeniteza@gmail.com").Subject("⚠️ NGA Failover").Body($"DB Error: {ex.Message}. User: {request.Email}").SendAsync();
+            return Results.Ok(new { success = true, message = "Suscripción Exitosa (via failover)" });
+        } catch { return Results.Problem("Critical failure"); }
     }
 });
 
@@ -95,36 +111,30 @@ app.MapGet("/api/quotes", async (IHttpClientFactory hf) => {
     try {
         var data = await new MarketDataFetcher(hf).Fetch(hf.CreateClient());
         return Results.Ok(data);
-    } catch { return Results.Ok(new { error = "API Offline" }); }
-});
-
-app.MapGet("/api/admin/logs", () => {
-    string logPath = Path.Combine(AppContext.BaseDirectory, "failover_subscriptions.log");
-    return File.Exists(logPath) ? Results.Text(File.ReadAllText(logPath)) : Results.NotFound("No hay registros pendientes.");
+    } catch { return Results.Ok(new { status = "Market API limited" }); }
 });
 
 app.Run();
 
-// --- LOGIC ---
+// --- MODELS & LOGIC ---
 
 public class MarketDataFetcher {
     private readonly IHttpClientFactory _hf;
     public MarketDataFetcher(IHttpClientFactory hf) => _hf = hf;
     public async Task<MarketDataResponse> Fetch(HttpClient client) {
         client.DefaultRequestHeaders.Add("User-Agent", "NGA-App");
-        var blue = await client.GetFromJsonAsync<DolarApiResponse>("https://dolarapi.com/v1/dolares/blue");
-        var euro = await client.GetFromJsonAsync<DolarApiResponse>("https://dolarapi.com/v1/cotizaciones/eur");
-        var real = await client.GetFromJsonAsync<DolarApiResponse>("https://dolarapi.com/v1/cotizaciones/brl");
+        var b = await client.GetFromJsonAsync<DolarApiResponse>("https://dolarapi.com/v1/dolares/blue");
+        var e = await client.GetFromJsonAsync<DolarApiResponse>("https://dolarapi.com/v1/cotizaciones/eur");
+        var r = await client.GetFromJsonAsync<DolarApiResponse>("https://dolarapi.com/v1/cotizaciones/brl");
         var stocks = await client.GetFromJsonAsync<List<MarketData912>>("https://data912.com/live/arg_stocks");
         var bonds = await client.GetFromJsonAsync<List<MarketData912>>("https://data912.com/live/arg_bonds");
         
         var targetB = new[] { "AL30", "GD30", "AL29", "AE38", "GD35", "AL41" };
         var bList = (bonds ?? new()).Where(x => targetB.Contains(x.Symbol)).Select(x => new BondInfo(x.Symbol, x.Symbol, x.PxBid, x.PxAsk, x.PctChange.ToString("F2") + "%")).ToList();
-        
         var targetS = new[] { "GGAL", "YPFD", "PAMP", "ALUA", "BMA", "LOMA", "EDN", "TXAR", "CEPU", "COME" };
         var sList = (stocks ?? new()).Where(x => targetS.Contains(x.Symbol)).Select(x => new StockInfo(x.Symbol, x.Symbol, x.LastPrice, x.PctChange.ToString("F2") + "%", "Merval")).ToList();
         
-        return new MarketDataResponse(new Quote(blue?.Compra ?? 0, blue?.Venta ?? 0), new Quote(euro?.Compra ?? 0, euro?.Venta ?? 0), new Quote(real?.Compra ?? 0, real?.Venta ?? 0), bList, sList);
+        return new MarketDataResponse(new Quote(b?.Compra ?? 0, b?.Venta ?? 0), new Quote(e?.Compra ?? 0, e?.Venta ?? 0), new Quote(r?.Compra ?? 0, r?.Venta ?? 0), bList, sList);
     }
 }
 
@@ -142,7 +152,7 @@ public class WeeklyReportService : BackgroundService {
                 var subs = await db.Subscriptions.ToListAsync();
                 if (subs.Any()) {
                     var data = await new MarketDataFetcher(_hf).Fetch(_hf.CreateClient());
-                    foreach (var s in subs) await email.To(s.Email).Subject("📊 NGA Reporte Semanal").Body($"Dólar: {data.dolar.venta}").SendAsync();
+                    foreach (var s in subs) await email.To(s.Email).Subject("📊 NGA Reporte Semanal").Body($"Dólar Blue: ${data.dolar.venta}").SendAsync();
                 }
                 await Task.Delay(TimeSpan.FromHours(24), st);
             }
