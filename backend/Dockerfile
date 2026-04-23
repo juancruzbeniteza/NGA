@@ -8,7 +8,7 @@ RUN dotnet publish "backend.csproj" -c Release -o /app/publish
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
-# Railway usa la variable PORT
-ENV ASPNETCORE_URLS=http://+:8080
-EXPOSE 8080
+# Render inyecta la variable PORT, ASP.NET Core la usará automáticamente si configuramos ASPNETCORE_URLS
+ENV ASPNETCORE_URLS=http://+:10000
+EXPOSE 10000
 ENTRYPOINT ["dotnet", "backend.dll"]

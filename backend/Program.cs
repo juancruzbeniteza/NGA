@@ -18,11 +18,24 @@ using Microsoft.Extensions.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database Configuration
-builder.Services.AddDbContext<AppDbContext>(options => 
-    options.UseSqlite("Data Source=nga_inversiones.db"));
+// Database Configuration - PostgreSQL
+var connectionString = builder.Configuration["DATABASE_URL"] 
+                      ?? builder.Configuration.GetConnectionString("DefaultConnection");
 
-// SMTP Configuration from appsettings.json
+builder.Services.AddDbContext<AppDbContext>(options => 
+{
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        // Fallback to SQLite for local development if no Postgres is provided
+        options.UseSqlite("Data Source=nga_inversiones.db");
+    }
+    else 
+    {
+        options.UseNpgsql(connectionString);
+    }
+});
+
+// SMTP Configuration from appsettings.json or Environment Variables
 var smtpConfig = builder.Configuration.GetSection("Smtp");
 builder.Services
     .AddFluentEmail(smtpConfig["FromEmail"] ?? "info@ngainversiones.com.ar", smtpConfig["FromName"] ?? "NGA Inversiones")
@@ -51,6 +64,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    // Automatically apply migrations/create schema
     db.Database.EnsureCreated();
 }
 

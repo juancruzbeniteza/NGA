@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "InZjkfQ7w94=",
+  "dgSpecHash": "Gra1/5ESNw8=",
   "success": true,
   "projectFilePath": "/Users/juancruzbenitezarce/Desktop/Musiquita/pagina nga/backend/backend.csproj",
   "expectedPackageFiles": [
@@ -42,6 +42,8 @@
     "/Users/juancruzbenitezarce/.nuget/packages/microsoft.extensions.primitives/8.0.0/microsoft.extensions.primitives.8.0.0.nupkg.sha512",
     "/Users/juancruzbenitezarce/.nuget/packages/microsoft.openapi/2.4.1/microsoft.openapi.2.4.1.nupkg.sha512",
     "/Users/juancruzbenitezarce/.nuget/packages/mono.texttemplating/2.2.1/mono.texttemplating.2.2.1.nupkg.sha512",
+    "/Users/juancruzbenitezarce/.nuget/packages/npgsql/8.0.6/npgsql.8.0.6.nupkg.sha512",
+    "/Users/juancruzbenitezarce/.nuget/packages/npgsql.entityframeworkcore.postgresql/8.0.11/npgsql.entityframeworkcore.postgresql.8.0.11.nupkg.sha512",
     "/Users/juancruzbenitezarce/.nuget/packages/razorlight/2.0.0-rc.3/razorlight.2.0.0-rc.3.nupkg.sha512",
     "/Users/juancruzbenitezarce/.nuget/packages/sqlitepclraw.bundle_e_sqlite3/2.1.6/sqlitepclraw.bundle_e_sqlite3.2.1.6.nupkg.sha512",
     "/Users/juancruzbenitezarce/.nuget/packages/sqlitepclraw.core/2.1.6/sqlitepclraw.core.2.1.6.nupkg.sha512",
