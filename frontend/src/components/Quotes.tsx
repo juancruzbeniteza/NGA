@@ -55,8 +55,6 @@ const QuoteCard = ({ title, data, icon: Icon, color }: { title: string, data: Qu
   );
 };
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5023';
-
 export const Quotes = () => {
   const [quotes, setQuotes] = useState<QuotesData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,7 +62,7 @@ export const Quotes = () => {
 
   const fetchQuotes = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/quotes`);
+      const response = await axios.get('http://localhost:5023/api/quotes');
       setQuotes(response.data);
       setLastUpdate(new Date().toLocaleTimeString());
       setLoading(false);

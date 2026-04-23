@@ -103,8 +103,6 @@ const Hero = () => {
   );
 };
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5023';
-
 const MarketInsights = () => {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -116,7 +114,7 @@ const MarketInsights = () => {
 
     setStatus('loading');
     try {
-      const response = await axios.post(`${API_URL}/api/subscribe`, { email });
+      const response = await axios.post('http://localhost:5023/api/subscribe', { email });
       setStatus('success');
       setMessage(response.data.message || '¡Gracias por suscribirte!');
       setEmail('');
