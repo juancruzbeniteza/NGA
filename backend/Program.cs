@@ -19,24 +19,24 @@ using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// DATABASE CONNECTION BUILDER (Robust)
+// DATABASE CONNECTION BUILDER (Supabase Optimized)
 string GetConnectionString(string? url)
 {
     if (string.IsNullOrEmpty(url)) return "Data Source=nga_inversiones.db";
     if (!url.Contains("://")) return url;
 
     try {
-        // Handle postgres://user:pass@host:port/db
         var uri = new Uri(url);
-        var username = uri.UserInfo.Split(':')[0];
-        var password = uri.UserInfo.Split(':')[1];
+        var userInfo = uri.UserInfo.Split(':');
+        var user = userInfo[0];
+        var pass = userInfo[1];
         var host = uri.Host;
         var port = uri.Port > 0 ? uri.Port : 5432;
-        var database = uri.AbsolutePath.Trim('/');
+        var db = uri.AbsolutePath.Trim('/');
 
-        return $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true;Include Error Detail=true";
-    } catch (Exception ex) {
-        Console.WriteLine($"Parse Error: {ex.Message}");
+        // Note: For Supabase, adding 'Pooling=false' often solves transient errors in free tiers
+        return $"Host={host};Port={port};Database={db};Username={user};Password={pass};SSL Mode=Require;Trust Server Certificate=true;Pooling=false;Timeout=300";
+    } catch {
         return url;
     }
 }
@@ -49,27 +49,26 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         options.UseSqlite(connectionString);
     } else {
         options.UseNpgsql(connectionString, npgsqlOptions => {
-            npgsqlOptions.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
+            npgsqlOptions.EnableRetryOnFailure(3, TimeSpan.FromSeconds(5), null);
         });
     }
 });
-
-// SMTP Configuration
-var smtpConfig = builder.Configuration.GetSection("Smtp");
-builder.Services
-    .AddFluentEmail(smtpConfig["FromEmail"] ?? "juancruzbeniteza@gmail.com", "NGA Inversiones")
-    .AddRazorRenderer()
-    .AddSmtpSender(new SmtpClient(smtpConfig["Host"] ?? "smtp.gmail.com") { 
-        Port = int.Parse(smtpConfig["Port"] ?? "587"),
-        Credentials = new System.Net.NetworkCredential(smtpConfig["User"] ?? "juancruzbeniteza@gmail.com", smtpConfig["Pass"] ?? "lftmcuuggwjwjlel"),
-        EnableSsl = true
-    });
 
 builder.Services.AddHttpClient();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddCors(options => { options.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()); });
 builder.Services.AddHostedService<WeeklyReportService>();
+
+// Mail config (using env vars if available)
+var smtpConfig = builder.Configuration.GetSection("Smtp");
+builder.Services.AddFluentEmail("juancruzbeniteza@gmail.com", "NGA Inversiones")
+    .AddRazorRenderer()
+    .AddSmtpSender(new SmtpClient("smtp.gmail.com") { 
+        Port = 587, 
+        Credentials = new System.Net.NetworkCredential("juancruzbeniteza@gmail.com", "lftmcuuggwjwjlel"),
+        EnableSsl = true 
+    });
 
 var app = builder.Build();
 
@@ -79,7 +78,7 @@ using (var scope = app.Services.CreateScope())
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.Database.EnsureCreated();
     } catch (Exception ex) {
-        Console.WriteLine($"Critical DB Error: {ex.Message}");
+        Console.WriteLine($"Startup DB Error: {ex.Message}");
     }
 }
 
@@ -89,11 +88,10 @@ app.UseCors("AllowAll");
 
 app.MapGet("/", () => Results.Ok(new { status = "NGA Online", database = connectionString.Contains("Host") ? "Postgres" : "SQLite" }));
 
-app.MapGet("/api/quotes", async (IHttpClientFactory httpClientFactory) =>
+app.MapGet("/api/quotes", async (IHttpClientFactory hf) =>
 {
     try {
-        var client = httpClientFactory.CreateClient();
-        var data = await new MarketDataFetcher(httpClientFactory).Fetch(client);
+        var data = await new MarketDataFetcher(hf).Fetch(hf.CreateClient());
         return Results.Ok(data);
     } catch (Exception ex) { return Results.Problem(ex.Message); }
 });
@@ -111,19 +109,11 @@ app.MapPost("/api/subscribe", async (SubscriptionRequest request, AppDbContext d
         await db.SaveChangesAsync();
         return Results.Ok(new { success = true, message = "Suscripción exitosa" });
     } catch (Exception ex) {
-        return Results.Json(new { success = false, message = "Error de base de datos", detail = ex.Message, stack = ex.StackTrace }, statusCode: 500);
+        // Find the deepest error message
+        var inner = ex;
+        while (inner.InnerException != null) inner = inner.InnerException;
+        return Results.Json(new { success = false, message = "Error de base de datos", detail = inner.Message }, statusCode: 500);
     }
-});
-
-app.MapGet("/api/test-send", async (string email, IFluentEmail fluentEmail, IHttpClientFactory httpClientFactory) =>
-{
-    try {
-        var client = httpClientFactory.CreateClient();
-        var marketData = await new MarketDataFetcher(httpClientFactory).Fetch(client);
-        string token = Convert.ToBase64String(Encoding.UTF8.GetBytes(email));
-        var result = await fluentEmail.To(email).Subject("📊 NGA Test").Body(new WeeklyReportService(null!, httpClientFactory).BuildEmailTemplateManual(marketData, token), true).SendAsync();
-        return result.Successful ? Results.Ok(new { success = true }) : Results.Problem("Error SMTP");
-    } catch (Exception ex) { return Results.Problem(ex.Message); }
 });
 
 app.MapGet("/api/unsubscribe", async (string token, AppDbContext db) =>
@@ -141,9 +131,9 @@ app.Run();
 
 public class WeeklyReportService : BackgroundService
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly IHttpClientFactory _httpClientFactory;
-    public WeeklyReportService(IServiceProvider serviceProvider, IHttpClientFactory httpClientFactory) { _serviceProvider = serviceProvider; _httpClientFactory = httpClientFactory; }
+    private readonly IServiceProvider _sp;
+    private readonly IHttpClientFactory _hf;
+    public WeeklyReportService(IServiceProvider sp, IHttpClientFactory hf) { _sp = sp; _hf = hf; }
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
@@ -155,13 +145,12 @@ public class WeeklyReportService : BackgroundService
     }
     private async Task SendWeeklyReports()
     {
-        using var scope = _serviceProvider.CreateScope();
+        using var scope = _sp.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var fluentEmail = scope.ServiceProvider.GetRequiredService<IFluentEmail>();
         var subscribers = await db.Subscriptions.ToListAsync();
         if (!subscribers.Any()) return;
-        var client = _httpClientFactory.CreateClient();
-        var marketData = await new MarketDataFetcher(_httpClientFactory).Fetch(client);
+        var marketData = await new MarketDataFetcher(_hf).Fetch(_hf.CreateClient());
         foreach (var sub in subscribers) {
             try {
                 string token = Convert.ToBase64String(Encoding.UTF8.GetBytes(sub.Email));
@@ -169,11 +158,10 @@ public class WeeklyReportService : BackgroundService
             } catch (Exception ex) { Console.WriteLine(ex.Message); }
         }
     }
-    public string BuildEmailTemplateManual(MarketDataResponse data, string token) => BuildEmailTemplate(data, token);
     private string BuildEmailTemplate(MarketDataResponse data, string token)
     {
-        string unsubscribeUrl = $"https://frontend-gilt-eta-56.vercel.app/api/unsubscribe?token={token}";
-        return $@"<html><body style='font-family: sans-serif; background: #f1f5f9; padding: 20px;'><div style='max-width: 600px; margin: 0 auto; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'><div style='background: #2563eb; color: white; padding: 30px; text-align: center;'><h1 style='margin:0'>NGA INVERSIONES</h1><p>REPORTE SEMANAL</p></div><div style='padding: 30px;'><p>Resumen de cierre de mercado:</p><ul><li>Dólar Blue: ${data.dolar.venta}</li><li>Euro: ${data.euro.venta}</li><li>Real: ${data.real.venta}</li></ul><p style='margin-top:20px; font-size: 12px; color: #64748b;'>Para dejar de recibir estos mails, <a href='{unsubscribeUrl}'>haz click aquí</a>.</p></div></div></body></html>";
+        string unsub = $"https://frontend-gilt-eta-56.vercel.app/api/unsubscribe?token={token}";
+        return $@"<html><body style='font-family:sans-serif;background:#f1f5f9;padding:20px'><div style='max-width:600px;margin:0 auto;background:white;border-radius:20px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.1)'><div style='background:#2563eb;color:white;padding:30px;text-align:center'><h1 style='margin:0'>NGA INVERSIONES</h1><p>REPORTE SEMANAL</p></div><div style='padding:30px'><p>Cierre de mercado:</p><ul><li>Blue: ${data.dolar.venta}</li><li>Euro: ${data.euro.venta}</li><li>Real: ${data.real.venta}</li></ul><p style='margin-top:20px;font-size:12px;color:#64748b'>Para desuscribirte <a href='{unsub}'>haz click aquí</a>.</p></div></div></body></html>";
     }
 }
 
@@ -182,7 +170,6 @@ public class MarketDataFetcher {
     public MarketDataFetcher(IHttpClientFactory hf) => _hf = hf;
     public async Task<MarketDataResponse> Fetch(HttpClient client) {
         try {
-            client.DefaultRequestHeaders.Clear();
             client.DefaultRequestHeaders.Add("User-Agent", "NGA-App");
             var b = await client.GetFromJsonAsync<DolarApiResponse>("https://dolarapi.com/v1/dolares/blue");
             var e = await client.GetFromJsonAsync<DolarApiResponse>("https://dolarapi.com/v1/cotizaciones/eur");
