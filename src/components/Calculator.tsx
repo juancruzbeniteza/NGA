@@ -16,7 +16,7 @@ export const Calculator = () => {
   useEffect(() => {
     const fetchQuotes = async () => {
       try {
-        const response = await axios.get('http://localhost:5023/api/quotes');
+        const response = await axios.get('/api/quotes');
         setQuotes(response.data);
       } catch (e) {
         setQuotes({

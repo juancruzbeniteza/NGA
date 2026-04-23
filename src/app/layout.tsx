@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { ChatAssistant } from "@/components/ChatAssistant";
+import { MarketTicker } from "@/components/ui/MarketTicker";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,6 +44,7 @@ export default function RootLayout({
   return (
     <html lang="es-AR" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="antialiased min-h-screen flex flex-col bg-slate-50 text-slate-900">
+        <MarketTicker />
         <Navbar />
         <main className="flex-grow">{children}</main>
         <Footer />

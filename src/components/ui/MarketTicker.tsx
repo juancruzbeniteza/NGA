@@ -11,7 +11,7 @@ export const MarketTicker = () => {
   useEffect(() => {
     const fetch = async () => {
       try {
-        const res = await axios.get('http://localhost:5023/api/quotes');
+        const res = await axios.get('/api/quotes');
         setData(res.data);
       } catch (e) {
         // Fallback for visual purposes
