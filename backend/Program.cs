@@ -19,28 +19,29 @@ using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// DATABASE CONNECTION (The most robust way)
+// DATABASE CONNECTION CONVERTER (Manual & Robust)
 string GetConnectionString(string? url)
 {
     if (string.IsNullOrEmpty(url)) return "Data Source=nga_inversiones.db";
     
-    // Si ya es una connection string de C#, la devolvemos tal cual
-    if (url.Contains("Host=") && url.Contains("User Id=")) return url;
+    // Si ya es formato C#, lo devolvemos
+    if (url.Contains("Host=") || url.Contains("Server=")) return url;
 
     try {
-        // Usamos NpgsqlConnectionStringBuilder para parsear la URL postgres://
-        var npgsqlBuilder = new NpgsqlConnectionStringBuilder(url)
-        {
-            SslMode = SslMode.Require,
-            TrustServerCertificate = true,
-            Pooling = false, // Obligatorio para Supabase Transaction Mode
-            Timeout = 60,
-            CommandTimeout = 60
-        };
-        return npgsqlBuilder.ToString();
+        // Formato: postgres://user:pass@host:port/db
+        var uri = new Uri(url);
+        var userInfo = uri.UserInfo.Split(':');
+        var user = userInfo[0];
+        var pass = userInfo.Length > 1 ? userInfo[1] : "";
+        var host = uri.Host;
+        var port = uri.Port > 0 ? uri.Port : 5432;
+        var db = uri.AbsolutePath.Trim('/');
+
+        // Construimos el formato que C# entiende
+        return $"Host={host};Port={port};Database={db};Username={user};Password={pass};SSL Mode=Require;Trust Server Certificate=true;Pooling=false;Timeout=60";
     } catch (Exception ex) {
-        Console.WriteLine($"ConnString Parse Error: {ex.Message}");
-        return url; // Fallback
+        Console.WriteLine($"ConnString Error: {ex.Message}");
+        return url;
     }
 }
 
@@ -78,7 +79,7 @@ using (var scope = app.Services.CreateScope())
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         db.Database.EnsureCreated();
     } catch (Exception ex) {
-        Console.WriteLine($"Startup DB Error: {ex.Message}");
+        Console.WriteLine($"DB Startup Error: {ex.Message}");
     }
 }
 
@@ -188,10 +189,10 @@ public class MarketDataFetcher {
             var bo = await client.GetFromJsonAsync<List<MarketData912>>("https://data912.com/live/arg_bonds");
             var targetB = new[] { "AL30", "GD30", "AL29", "AE38", "GD35", "AL41" };
             var boData = bo ?? new List<MarketData912>();
-            var bonds = boData.Where(x => targetB.Contains(x.Symbol)).Select(x => new BondInfo(x.Symbol, x.Symbol, x.PxBid, x.PxAsk, x.PctChange.ToString("F2") + "%")).ToList();
+            var bonds = boData.Where(x => targetB.Contains(x.Symbol)).Select(x => new BondInfo(x.Symbol, x.Symbol, x.PxBid, x.PxAsk, (x.PctChange/100).ToString("P2"))).ToList();
             var targetS = new[] { "GGAL", "YPFD", "PAMP", "ALUA", "BMA", "LOMA", "EDN", "TXAR", "CEPU", "COME" };
             var sData = s ?? new List<MarketData912>();
-            var stocks = sData.Where(x => targetS.Contains(x.Symbol)).Select(x => new StockInfo(x.Symbol, x.Symbol, x.LastPrice, x.PctChange.ToString("F2") + "%", "Sector")).ToList();
+            var stocks = sData.Where(x => targetS.Contains(x.Symbol)).Select(x => new StockInfo(x.Symbol, x.Symbol, x.LastPrice, (x.PctChange/100).ToString("P2"), "Sector")).ToList();
             return new MarketDataResponse(new Quote(b?.Compra ?? 0, b?.Venta ?? 0), new Quote(e?.Compra ?? 0, e?.Venta ?? 0), new Quote(r?.Compra ?? 0, r?.Venta ?? 0), bonds, stocks);
         } catch { return new MarketDataResponse(new Quote(0, 0), new Quote(0, 0), new Quote(0, 0), new(), new()); }
     }
