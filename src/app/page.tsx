@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, Variants } from 'framer-motion';
 import { ArrowRight, Landmark, ArrowUpRight, BarChart3, Zap, Briefcase, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
@@ -25,6 +25,32 @@ const itemVariants: Variants = {
 };
 
 const Hero = () => {
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await axios.get('/api/quotes');
+        const data = res.data;
+        const al30 = data.bonds?.find((b: any) => b.ticker === 'AL30')?.venta || '53.10';
+        const ggal = data.stocks?.find((s: any) => s.ticker === 'GGAL')?.precio || '4.850';
+        
+        setStats([
+          { label: 'Blue', val: `$${data.dolar?.venta || '1.410'}`, color: 'text-blue-600' },
+          { label: 'AL30', val: al30, color: 'text-slate-900' },
+          { label: 'GGAL', val: ggal, color: 'text-slate-900' }
+        ]);
+      } catch (e) {
+        setStats([
+          { label: 'Blue', val: '$1.410', color: 'text-blue-600' },
+          { label: 'AL30', val: '53.10', color: 'text-slate-900' },
+          { label: 'GGAL', val: '4.850', color: 'text-slate-900' }
+        ]);
+      }
+    };
+    fetchStats();
+  }, []);
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#F8FAFC] py-20">
       <BackgroundShaders />
@@ -63,6 +89,21 @@ const Hero = () => {
           </motion.div>
         </motion.div>
       </div>
+
+      {/* Floating stats on the left */}
+      <motion.div 
+        initial={{ opacity: 0, x: -100 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 1, duration: 1 }}
+        className="absolute left-10 top-1/2 -translate-y-1/2 hidden xl:flex flex-col space-y-12 z-20"
+      >
+        {stats && stats.map((stat: any, i: number) => (
+          <div key={i} className="flex flex-col">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</span>
+            <span className={`text-2xl font-black italic ${stat.color}`}>{stat.val}</span>
+          </div>
+        ))}
+      </motion.div>
     </section>
   );
 };
@@ -78,7 +119,6 @@ const MarketInsights = () => {
 
     setStatus('loading');
     try {
-      // Usamos ruta relativa porque la API estará en el mismo proyecto Next.js!
       const response = await axios.post(`/api/subscribe`, { email });
       setStatus('success');
       setMessage(response.data.message || '¡Gracias por suscribirte!');
