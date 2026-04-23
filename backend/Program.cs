@@ -18,21 +18,18 @@ using Microsoft.Extensions.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Database Configuration: Smart Switch
-// DATABASE_URL is provided by Render/Supabase
+// Database Configuration - PostgreSQL (Supabase)
 var connectionString = builder.Configuration["DATABASE_URL"];
 
 builder.Services.AddDbContext<AppDbContext>(options => 
 {
     if (string.IsNullOrEmpty(connectionString))
     {
-        // LOCAL: Usar SQLite
         options.UseSqlite("Data Source=nga_inversiones.db");
     }
     else 
     {
-        // NUBE: Usar PostgreSQL (Supabase)
-        // Convertir URL de Supabase si es necesario (Render a veces requiere sslmode=require)
+        // Fix for Supabase/Render connection strings
         if (connectionString.StartsWith("postgres://")) {
             connectionString = connectionString.Replace("postgres://", "postgresql://");
         }
@@ -54,32 +51,27 @@ builder.Services
 builder.Services.AddHttpClient();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
-// CORS: Permitir todo en producción para evitar bloqueos
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
-    });
-});
-
+builder.Services.AddCors(options => { options.AddPolicy("AllowAll", p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()); });
 builder.Services.AddHostedService<WeeklyReportService>();
 
 var app = builder.Build();
 
+// Resilient database creation
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();
+    try {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        db.Database.EnsureCreated();
+    } catch (Exception ex) {
+        Console.WriteLine($"DB Initialization Warning: {ex.Message}");
+    }
 }
 
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors("AllowAll");
 
-// Health Check for Pinging Service (Keep-alive)
-app.MapGet("/", () => Results.Ok(new { status = "NGA Online", environment = connectionString != null ? "Cloud" : "Local", time = DateTime.Now }));
+app.MapGet("/", () => Results.Ok(new { status = "NGA Online", time = DateTime.Now }));
 
 app.MapGet("/api/quotes", async (IHttpClientFactory httpClientFactory) =>
 {
@@ -110,7 +102,7 @@ app.MapGet("/api/test-send", async (string email, IFluentEmail fluentEmail, IHtt
         var client = httpClientFactory.CreateClient();
         var marketData = await new MarketDataFetcher(httpClientFactory).Fetch(client);
         string token = Convert.ToBase64String(Encoding.UTF8.GetBytes(email));
-        var result = await fluentEmail.To(email).Subject("📊 NGA Inversiones - Test Cierre").Body(new WeeklyReportService(null!, httpClientFactory).BuildEmailTemplateManual(marketData, token), true).SendAsync();
+        var result = await fluentEmail.To(email).Subject("📊 NGA Inversiones - Test").Body(new WeeklyReportService(null!, httpClientFactory).BuildEmailTemplateManual(marketData, token), true).SendAsync();
         return result.Successful ? Results.Ok(new { success = true }) : Results.Problem("Error");
     } catch (Exception ex) { return Results.Problem(ex.Message); }
 });
@@ -187,7 +179,7 @@ public class WeeklyReportService : BackgroundService
     public string BuildEmailTemplateManual(MarketDataResponse data, string token) => BuildEmailTemplate(data, token);
     private string BuildEmailTemplate(MarketDataResponse data, string token)
     {
-        string unsubscribeUrl = $"https://nga-backend.onrender.com/api/unsubscribe?token={token}";
+        string unsubscribeUrl = $"https://frontend-gilt-eta-56.vercel.app/api/unsubscribe?token={token}";
         return $@"<html><body style='font-family: sans-serif; background: #f1f5f9; padding: 20px;'><div style='max-width: 600px; margin: 0 auto; background: white; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'><div style='background: #2563eb; color: white; padding: 30px; text-align: center;'><h1 style='margin:0'>NGA INVERSIONES</h1><p>REPORTE SEMANAL</p></div><div style='padding: 30px;'><p>Resumen de cierre de mercado:</p><ul><li>Dólar Blue: ${data.dolar.venta}</li><li>Euro: ${data.euro.venta}</li><li>Real: ${data.real.venta}</li></ul><p style='margin-top:20px; font-size: 12px; color: #64748b;'>Para dejar de recibir estos mails, <a href='{unsubscribeUrl}'>haz click aquí</a>.</p></div></div></body></html>";
     }
 }
