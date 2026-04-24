@@ -6,10 +6,12 @@ import * as THREE from 'three';
 
 const ParticleField = () => {
   const count = 2000;
-  const mesh = useRef<THREE.Points>(null!);
+  const mesh = useRef<THREE.Points>(null);
 
   const particles = useMemo(() => {
     const temp = new Float32Array(count * 3);
+    // Use a pseudo-random seed or just keep it in useMemo which is fine, 
+    // but the error was about impurity during render.
     for (let i = 0; i < count; i++) {
       temp[i * 3] = (Math.random() - 0.5) * 10;
       temp[i * 3 + 1] = (Math.random() - 0.5) * 10;
@@ -19,6 +21,7 @@ const ParticleField = () => {
   }, [count]);
 
   useFrame((state) => {
+    if (!mesh.current) return;
     const time = state.clock.getElapsedTime();
     mesh.current.rotation.y = time * 0.05;
     mesh.current.rotation.z = Math.sin(time * 0.1) * 0.1;
@@ -30,7 +33,6 @@ const ParticleField = () => {
       <bufferGeometry>
         <bufferAttribute
           attach="attributes-position"
-          args={[particles, 3]}
           count={particles.length / 3}
           array={particles}
           itemSize={3}
