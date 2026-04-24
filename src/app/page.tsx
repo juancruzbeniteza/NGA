@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { motion, Variants } from 'framer-motion';
-import { ArrowRight, Landmark, ArrowUpRight, BarChart3, Zap, Briefcase, CheckCircle2 } from 'lucide-react';
+import { motion, Variants, AnimatePresence } from 'framer-motion';
+import { ArrowRight, Landmark, ArrowUpRight, BarChart3, Zap, Briefcase, CheckCircle2, TrendingUp, RefreshCcw } from 'lucide-react';
 import Link from 'next/link';
 import axios from 'axios';
 import { BackgroundShaders } from '@/components/ui/Shaders';
@@ -112,6 +112,19 @@ const MarketInsights = () => {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  const [marketData, setMarketData] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await axios.get('/api/quotes');
+        setMarketData(res.data);
+      } catch (e) {
+        console.error("Error fetching landing data", e);
+      }
+    };
+    fetchData();
+  }, []);
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,6 +141,33 @@ const MarketInsights = () => {
       setMessage(error.response?.data?.message || 'Hubo un error. Intentalo de nuevo.');
     }
   };
+
+  const features = [
+    { 
+      title: 'Monitor de Divisas', 
+      val: marketData ? `$${marketData.dolar?.venta}` : '$1.410',
+      label: 'Dólar Blue',
+      desc: 'Seguimiento en tiempo real de los principales tipos de cambio en la City.', 
+      icon: BarChart3, 
+      delay: 0 
+    },
+    { 
+      title: 'Renta Fija', 
+      val: marketData ? marketData.bonds?.find((b: any) => b.ticker === 'AL30')?.venta : '53.10',
+      label: 'Bono AL30',
+      desc: 'Cotizaciones actualizadas de bonos soberanos AL30, GD30 y su spread.', 
+      icon: Landmark, 
+      delay: 0.1 
+    },
+    { 
+      title: 'Lideres Merval', 
+      val: marketData ? `$${marketData.stocks?.find((s: any) => s.ticker === 'GGAL')?.precio}` : '$4.850',
+      label: 'Galicia (GGAL)',
+      desc: 'Panel de acciones líderes con variaciones porcentuales al instante.', 
+      icon: Briefcase, 
+      delay: 0.2 
+    }
+  ];
 
   return (
     <>
@@ -146,17 +186,22 @@ const MarketInsights = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { title: 'Monitor de Divisas', desc: 'Seguimiento en tiempo real de los principales tipos de cambio en la City.', icon: BarChart3, delay: 0 },
-              { title: 'Renta Fija', desc: 'Cotizaciones actualizadas de bonos soberanos AL30, GD30 y su spread.', icon: Landmark, delay: 0.1 },
-              { title: 'Lideres Merval', desc: 'Panel de acciones líderes con variaciones porcentuales al instante.', icon: Briefcase, delay: 0.2 }
-            ].map((feature, i) => (
-              <motion.div key={i} initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: feature.delay }} className="p-10 rounded-[3rem] bg-[#F8FAFC] border border-slate-100 hover:border-blue-600/20 hover:bg-white hover:shadow-2xl hover:shadow-blue-900/5 transition-all group">
-                <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-blue-100 group-hover:scale-110 transition-transform duration-500 text-white">
-                  <feature.icon size={24} />
+            {features.map((feature, i) => (
+              <motion.div key={i} initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: feature.delay }} className="p-10 rounded-[3rem] bg-[#F8FAFC] border border-slate-100 hover:border-blue-600/20 hover:bg-white hover:shadow-2xl hover:shadow-blue-900/5 transition-all group relative overflow-hidden">
+                <div className="relative z-10">
+                  <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-blue-100 group-hover:scale-110 transition-transform duration-500 text-white">
+                    <feature.icon size={24} />
+                  </div>
+                  <div className="mb-6">
+                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">{feature.label}</p>
+                    <h3 className="text-4xl font-black text-slate-900 italic tracking-tighter">{feature.val}</h3>
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 mb-4 uppercase italic tracking-tight">{feature.title}</h3>
+                  <p className="text-slate-500 leading-relaxed font-medium text-sm">{feature.desc}</p>
                 </div>
-                <h3 className="text-xl font-black text-slate-900 mb-6 uppercase italic tracking-tight">{feature.title}</h3>
-                <p className="text-slate-500 leading-relaxed font-medium text-base">{feature.desc}</p>
+                <div className="absolute top-0 right-0 p-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <TrendingUp size={20} className="text-emerald-500" />
+                </div>
               </motion.div>
             ))}
           </div>
