@@ -4,6 +4,20 @@ import nodemailer from 'nodemailer';
 
 export const maxDuration = 300; // Allows cron job to run for up to 5 minutes
 
+interface MarketInstrument {
+  symbol: string;
+  c: number;
+  pct_change: number;
+}
+
+interface MarketData {
+  dolar?: { venta: number };
+  euro?: { venta: number };
+  real?: { venta: number };
+  stocks?: MarketInstrument[];
+  bonds?: MarketInstrument[];
+}
+
 export async function GET(request: Request) {
   // Check Vercel Cron auth header (Security)
   if (
@@ -21,7 +35,7 @@ export async function GET(request: Request) {
     
     // Fetch latest market data locally calling our own endpoint logic
     // We simulate the fetch logic to reuse the robust API code
-    let marketData: any = null;
+    let marketData: MarketData | null = null;
     try {
       const headers = { 'User-Agent': 'NGA-App' };
       const fetchJson = async (url: string) => (await fetch(url, { headers, cache: 'no-store' })).json();
@@ -60,7 +74,7 @@ export async function GET(request: Request) {
         },
       });
 
-      const buildEmailTemplate = (data: any, token: string) => {
+      const buildEmailTemplate = (data: MarketData, token: string) => {
         const unsubscribeUrl = `https://ngainversiones.com/api/unsubscribe?token=${token}`;
         const date = new Date().toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         
@@ -76,10 +90,10 @@ export async function GET(request: Request) {
 
         // Filter for most relevant stocks and bonds
         const mainStocks = ['GGAL', 'YPFD', 'PAMP', 'ALUA', 'BMA'];
-        const filteredStocks = data.stocks?.filter((s: any) => mainStocks.includes(s.symbol)).slice(0, 5) || [];
+        const filteredStocks = data.stocks?.filter((s: MarketInstrument) => mainStocks.includes(s.symbol)).slice(0, 5) || [];
         
         const mainBonds = ['AL30', 'GD30', 'AL29', 'AE38'];
-        const filteredBonds = data.bonds?.filter((b: any) => mainBonds.includes(b.symbol)).slice(0, 5) || [];
+        const filteredBonds = data.bonds?.filter((b: MarketInstrument) => mainBonds.includes(b.symbol)).slice(0, 5) || [];
 
         return `
           <!DOCTYPE html>
@@ -126,7 +140,7 @@ export async function GET(request: Request) {
                       <th style="padding: 12px; text-align: right; color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase;">Precio</th>
                       <th style="padding: 12px; text-align: right; color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase;">Var %</th>
                     </tr>
-                    ${filteredStocks.map((s: any) => `
+                    ${filteredStocks.map((s: MarketInstrument) => `
                       <tr>
                         <td style="padding: 12px; border-bottom: 1px solid #f1f5f9;">
                           <span style="color: #0f172a; font-size: 14px; font-weight: 700;">${s.symbol}</span>
@@ -149,7 +163,7 @@ export async function GET(request: Request) {
                       <th style="padding: 12px; text-align: right; color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase;">Precio</th>
                       <th style="padding: 12px; text-align: right; color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase;">Var %</th>
                     </tr>
-                    ${filteredBonds.map((b: any) => `
+                    ${filteredBonds.map((b: MarketInstrument) => `
                       <tr>
                         <td style="padding: 12px; border-bottom: 1px solid #f1f5f9;">
                           <span style="color: #0f172a; font-size: 14px; font-weight: 700;">${b.symbol}</span>
@@ -182,8 +196,9 @@ export async function GET(request: Request) {
       };
 
       // 3. Send emails
-      const emailPromises = subscribers.map(async (sub) => {
+      const emailPromises = subscribers.map(async (sub: { Email: string }) => {
         const token = Buffer.from(sub.Email).toString('base64');
+        if (!marketData) return;
         const html = buildEmailTemplate(marketData, token);
         
         try {
@@ -197,6 +212,7 @@ export async function GET(request: Request) {
           console.error(`Failed to send email to ${sub.Email}:`, mailError);
         }
       });
+
 
       await Promise.all(emailPromises);
 

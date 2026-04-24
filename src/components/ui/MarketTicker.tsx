@@ -5,24 +5,36 @@ import axios from 'axios';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
+interface MarketInstrument {
+  symbol: string;
+  pct_change: number;
+}
+
+interface QuotesData {
+  dolar: { venta: number };
+  euro: { venta: number };
+  real: { venta: number };
+  stocks?: MarketInstrument[];
+}
+
 export const MarketTicker = () => {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<QuotesData | null>(null);
 
   useEffect(() => {
     const fetch = async () => {
       try {
-        const res = await axios.get('/api/quotes');
+        const res = await axios.get<QuotesData>('/api/quotes');
         setData(res.data);
-      } catch (e) {
+      } catch {
         // Fallback for visual purposes
         setData({
-          dolar: { compra: 1390, venta: 1410 },
-          euro: { compra: 1611, venta: 1625 },
-          real: { compra: 276, venta: 277 },
+          dolar: { venta: 1410 },
+          euro: { venta: 1625 },
+          real: { venta: 277 },
           stocks: [
-            { ticker: "GGAL", variacion: "+2.4%" },
-            { ticker: "YPFD", variacion: "-1.2%" },
-            { ticker: "PAMP", variacion: "+0.8%" }
+            { symbol: "GGAL", pct_change: 2.4 },
+            { symbol: "YPFD", pct_change: -1.2 },
+            { symbol: "PAMP", pct_change: 0.8 }
           ]
         });
       }
@@ -38,7 +50,7 @@ export const MarketTicker = () => {
     { label: 'DÓLAR', value: data.dolar?.venta ? `$${data.dolar.venta}` : '...', up: true },
     { label: 'EURO', value: data.euro?.venta ? `$${data.euro.venta}` : '...', up: true },
     { label: 'REAL', value: data.real?.venta ? `$${data.real.venta}` : '...', up: false },
-    ...(data.stocks?.slice(0, 10).map((s: any) => ({
+    ...(data.stocks?.slice(0, 10).map((s: MarketInstrument) => ({
       label: s.symbol,
       value: `${s.pct_change > 0 ? '+' : ''}${s.pct_change}%`,
       up: s.pct_change >= 0

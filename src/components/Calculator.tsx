@@ -5,20 +5,32 @@ import axios from 'axios';
 import { motion } from 'framer-motion';
 import { RefreshCcw, Wallet, TrendingUp, Landmark, ArrowRight, ShieldCheck } from 'lucide-react';
 
+interface Quote {
+  compra: number;
+  venta: number;
+}
+
+interface QuotesData {
+  dolar: Quote;
+  euro: Quote;
+  real: Quote;
+  last_update?: string;
+}
+
 export const Calculator = () => {
   const [mode, setMode] = useState<'compra' | 'venta'>('compra');
   const [amount, setAmount] = useState<number>(100000);
   const [currency, setCurrency] = useState<'dolar' | 'euro' | 'real'>('dolar');
-  const [quotes, setQuotes] = useState<any>(null);
+  const [quotes, setQuotes] = useState<QuotesData | null>(null);
   const [result, setResult] = useState<number>(0);
   const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
     const fetchQuotes = async () => {
       try {
-        const response = await axios.get('/api/quotes');
+        const response = await axios.get<QuotesData>('/api/quotes');
         setQuotes(response.data);
-      } catch (e) {
+      } catch {
         setQuotes({
           dolar: { compra: 1390, venta: 1410 },
           euro: { compra: 1611, venta: 1625 },
@@ -31,7 +43,10 @@ export const Calculator = () => {
 
   useEffect(() => {
     if (!quotes) return;
-    setIsAnimating(true);
+    
+    // Use a small delay to avoid cascading render warning while starting animation
+    const animationStart = setTimeout(() => setIsAnimating(true), 0);
+    
     const rate = quotes[currency];
     const calc = mode === 'compra' ? amount / rate.venta : amount * rate.compra;
     
@@ -39,7 +54,10 @@ export const Calculator = () => {
       setResult(calc);
       setIsAnimating(false);
     }, 150);
-    return () => clearTimeout(timeout);
+    return () => {
+      clearTimeout(animationStart);
+      clearTimeout(timeout);
+    };
   }, [amount, currency, mode, quotes]);
 
   const currencyNames = { dolar: 'Dólar Blue', euro: 'Euro Oficial', real: 'Real' };
