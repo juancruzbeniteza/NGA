@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DollarSign, Euro, Banknote, RefreshCcw, Landmark, Briefcase } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
@@ -35,11 +34,6 @@ const MarketCard = ({ title, data, icon: Icon, chartData, index, type = 'currenc
     minimumFractionDigits: 2
   });
 
-  const displayValue = data ? (typeof data === 'number' ? data : (data.venta || data.precio || data.c || 0)) : 0;
-  const displayCompra = data?.compra || data?.bid || 0;
-  const displayVenta = data?.venta || data?.ask || data?.c || 0;
-  const displayVar = data?.variacion || (data?.pct_change !== undefined ? `${data.pct_change > 0 ? '+' : ''}${data.pct_change}%` : '0.0%');
-
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -65,7 +59,7 @@ const MarketCard = ({ title, data, icon: Icon, chartData, index, type = 'currenc
 
         <h3 className="text-xs font-black text-slate-400 mb-1 uppercase tracking-widest line-clamp-1">{title}</h3>
         <div className="text-3xl md:text-4xl font-black text-slate-900 mb-6 tracking-tighter">
-          {formatter.format(displayValue)}
+          {data ? (typeof data === 'number' ? formatter.format(data) : formatter.format(data.venta || data.precio)) : '---'}
         </div>
 
         <div className="h-20 w-full mb-6">
@@ -91,18 +85,18 @@ const MarketCard = ({ title, data, icon: Icon, chartData, index, type = 'currenc
           <>
             <div>
               <p className="text-[8px] text-slate-400 font-black uppercase tracking-widest mb-1">Compra</p>
-              <p className="text-sm md:text-base font-black text-slate-700">{formatter.format(displayCompra)}</p>
+              <p className="text-sm md:text-base font-black text-slate-700">{data ? formatter.format(data.compra) : '---'}</p>
             </div>
             <div className="text-right">
               <p className="text-[8px] text-slate-400 font-black uppercase tracking-widest mb-1">Venta</p>
-              <p className="text-sm md:text-base font-black text-slate-900">{formatter.format(displayVenta)}</p>
+              <p className="text-sm md:text-base font-black text-slate-900">{data ? formatter.format(data.venta) : '---'}</p>
             </div>
           </>
         ) : (
           <>
             <div>
               <p className="text-[8px] text-slate-400 font-black uppercase tracking-widest mb-1">Variación</p>
-              <p className={`text-sm md:text-base font-black ${displayVar.startsWith('+') ? 'text-emerald-500' : 'text-red-500'}`}>{displayVar}</p>
+              <p className={`text-sm md:text-base font-black ${data?.variacion?.startsWith('+') ? 'text-emerald-500' : 'text-red-500'}`}>{data?.variacion || '0.0%'}</p>
             </div>
             <div className="text-right">
               <p className="text-[8px] text-slate-400 font-black uppercase tracking-widest mb-1">Sector</p>
@@ -121,41 +115,43 @@ export default function MarketPage() {
   const [lastUpdate, setLastUpdate] = useState('');
   const [activeTab, setActiveTab] = useState('divisas');
 
+  const fetchData = async () => {
+    try {
+      const res = await fetch('/api/quotes');
+      const json = await res.json();
+      if (json.error) throw new Error(json.message);
+      setData(json);
+      setLastUpdate(new Date().toLocaleTimeString());
+    } catch (e) {
+      console.error("Using fallback data due to:", e);
+      setData({
+        dolar: { compra: 1390, venta: 1410 },
+        euro: { compra: 1611, venta: 1625 },
+        real: { compra: 276, venta: 277 },
+        bonds: [
+          { ticker: "AL30", nombre: "Bonar 2030", compra: 52.40, venta: 53.10 },
+          { ticker: "GD30", nombre: "Global 2030", compra: 56.15, venta: 56.80 },
+          { ticker: "AL29", nombre: "Bonar 2029", compra: 55.20, venta: 55.90 },
+          { ticker: "AE38", nombre: "Bonar 2038", compra: 48.10, venta: 48.75 },
+          { ticker: "GD35", nombre: "Global 2035", compra: 46.30, venta: 47.00 }
+        ],
+        stocks: [
+          { ticker: "GGAL", nombre: "Galicia", precio: 4850.50, variacion: "+2.4%", sector: "Bancario" },
+          { ticker: "YPFD", nombre: "YPF S.A.", precio: 24120.00, variacion: "-1.2%", sector: "Energía" },
+          { ticker: "PAMP", nombre: "Pampa Energía", precio: 1840.20, variacion: "+0.8%", sector: "Energía" },
+          { ticker: "LOMA", nombre: "Loma Negra", precio: 1450.00, variacion: "+0.5%", sector: "Construcción" },
+          { ticker: "EDN", nombre: "Edenor", precio: 980.50, variacion: "-0.4%", sector: "Energía" }
+        ]
+      });
+      setLastUpdate(new Date().toLocaleTimeString() + " (Offline)");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetch = async () => {
-      try {
-        const res = await axios.get('/api/quotes'); // Route local
-        if (res.data.error) throw new Error(res.data.message);
-        setData(res.data);
-        setLastUpdate(new Date().toLocaleTimeString());
-      } catch (e) {
-        console.error("Using fallback data due to:", e);
-        setData({
-          dolar: { compra: 1390, venta: 1410 },
-          euro: { compra: 1611, venta: 1625 },
-          real: { compra: 276, venta: 277 },
-          bonds: [
-            { ticker: "AL30", nombre: "Bonar 2030", compra: 52.40, venta: 53.10 },
-            { ticker: "GD30", nombre: "Global 2030", compra: 56.15, venta: 56.80 },
-            { ticker: "AL29", nombre: "Bonar 2029", compra: 55.20, venta: 55.90 },
-            { ticker: "AE38", nombre: "Bonar 2038", compra: 48.10, venta: 48.75 },
-            { ticker: "GD35", nombre: "Global 2035", compra: 46.30, venta: 47.00 }
-          ],
-          stocks: [
-            { ticker: "GGAL", nombre: "Galicia", precio: 4850.50, variacion: "+2.4%", sector: "Bancario" },
-            { ticker: "YPFD", nombre: "YPF S.A.", precio: 24120.00, variacion: "-1.2%", sector: "Energía" },
-            { ticker: "PAMP", nombre: "Pampa Energía", precio: 1840.20, variacion: "+0.8%", sector: "Energía" },
-            { ticker: "LOMA", nombre: "Loma Negra", precio: 1450.00, variacion: "+0.5%", sector: "Construcción" },
-            { ticker: "EDN", nombre: "Edenor", precio: 980.50, variacion: "-0.4%", sector: "Energía" }
-          ]
-        });
-        setLastUpdate(new Date().toLocaleTimeString() + " (Offline)");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
-    const interval = setInterval(fetch, 60000);
+    fetchData();
+    const interval = setInterval(fetchData, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -222,9 +218,9 @@ export default function MarketPage() {
                 )}
                 {activeTab === 'bonos' && data?.bonds?.map((bond: any, i: number) => (
                   <MarketCard 
-                    key={bond.symbol || bond.ticker} 
+                    key={bond.ticker} 
                     index={i} 
-                    title={bond.symbol || bond.ticker} 
+                    title={bond.ticker} 
                     data={bond} 
                     icon={Landmark} 
                     color="bg-blue-600" 
@@ -235,9 +231,9 @@ export default function MarketPage() {
                 ))}
                 {activeTab === 'acciones' && data?.stocks?.map((stock: any, i: number) => (
                   <MarketCard 
-                    key={stock.symbol || stock.ticker} 
+                    key={stock.ticker} 
                     index={i} 
-                    title={stock.symbol || stock.ticker} 
+                    title={stock.ticker} 
                     data={stock} 
                     icon={Briefcase} 
                     color="bg-blue-600" 

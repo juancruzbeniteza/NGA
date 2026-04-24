@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 import { DollarSign, Euro, Banknote, RefreshCcw, TrendingUp } from 'lucide-react';
 
 interface Quote {
@@ -57,8 +56,6 @@ const QuoteCard = ({ title, data, icon: Icon, color }: { title: string, data: Qu
   );
 };
 
-const API_URL = ''; // Relative path for Next.js API routes
-
 export const Quotes = () => {
   const [quotes, setQuotes] = useState<QuotesData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,13 +63,13 @@ export const Quotes = () => {
 
   const fetchQuotes = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/quotes`);
-      setQuotes(response.data);
+      const res = await fetch('/api/quotes');
+      const data = await res.json();
+      setQuotes(data);
       setLastUpdate(new Date().toLocaleTimeString());
       setLoading(false);
     } catch (error) {
       console.error('Error fetching quotes:', error);
-      // Fallback to dummy data if server is not up yet during development
       setQuotes({
         dolar: { compra: 980, venta: 1000 },
         euro: { compra: 1050, venta: 1080 },

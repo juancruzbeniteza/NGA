@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { motion, Variants, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Landmark, ArrowUpRight, BarChart3, Zap, Briefcase, CheckCircle2, TrendingUp, RefreshCcw } from 'lucide-react';
 import Link from 'next/link';
-import axios from 'axios';
 import { BackgroundShaders } from '@/components/ui/Shaders';
 
 const containerVariants: Variants = {
@@ -30,8 +29,8 @@ const Hero = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await axios.get('/api/quotes');
-        const data = res.data;
+        const res = await fetch('/api/quotes');
+        const data = await res.json();
         const al30 = data.bonds?.find((b: any) => b.ticker === 'AL30')?.venta || '53.10';
         const ggal = data.stocks?.find((s: any) => s.ticker === 'GGAL')?.precio || '4.850';
         
@@ -117,8 +116,9 @@ const MarketInsights = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await axios.get('/api/quotes');
-        setMarketData(res.data);
+        const res = await fetch('/api/quotes');
+        const data = await res.json();
+        setMarketData(data);
       } catch (e) {
         console.error("Error fetching landing data", e);
       }
@@ -132,13 +132,23 @@ const MarketInsights = () => {
 
     setStatus('loading');
     try {
-      const response = await axios.post(`/api/subscribe`, { email });
-      setStatus('success');
-      setMessage(response.data.message || '¡Gracias por suscribirte!');
-      setEmail('');
+      const res = await fetch(`/api/subscribe`, { 
+        method: "POST", 
+        body: JSON.stringify({ email }), 
+        headers: { "Content-Type": "application/json" } 
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        setStatus('success');
+        setMessage(data.message || '¡Gracias por suscribirte!');
+        setEmail('');
+      } else {
+        throw new Error(data.message || 'Error en la suscripción');
+      }
     } catch (error: any) {
       setStatus('error');
-      setMessage(error.response?.data?.message || 'Hubo un error. Intentalo de nuevo.');
+      setMessage(error.message || 'Hubo un error. Intentalo de nuevo.');
     }
   };
 
