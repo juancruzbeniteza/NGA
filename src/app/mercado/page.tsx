@@ -35,6 +35,11 @@ const MarketCard = ({ title, data, icon: Icon, chartData, index, type = 'currenc
     minimumFractionDigits: 2
   });
 
+  const displayValue = data ? (typeof data === 'number' ? data : (data.venta || data.precio || data.c || 0)) : 0;
+  const displayCompra = data?.compra || data?.bid || 0;
+  const displayVenta = data?.venta || data?.ask || data?.c || 0;
+  const displayVar = data?.variacion || (data?.pct_change !== undefined ? `${data.pct_change > 0 ? '+' : ''}${data.pct_change}%` : '0.0%');
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -60,7 +65,7 @@ const MarketCard = ({ title, data, icon: Icon, chartData, index, type = 'currenc
 
         <h3 className="text-xs font-black text-slate-400 mb-1 uppercase tracking-widest line-clamp-1">{title}</h3>
         <div className="text-3xl md:text-4xl font-black text-slate-900 mb-6 tracking-tighter">
-          {data ? (typeof data === 'number' ? formatter.format(data) : formatter.format(data.venta || data.precio)) : '---'}
+          {formatter.format(displayValue)}
         </div>
 
         <div className="h-20 w-full mb-6">
@@ -86,18 +91,18 @@ const MarketCard = ({ title, data, icon: Icon, chartData, index, type = 'currenc
           <>
             <div>
               <p className="text-[8px] text-slate-400 font-black uppercase tracking-widest mb-1">Compra</p>
-              <p className="text-sm md:text-base font-black text-slate-700">{data ? formatter.format(data.compra) : '---'}</p>
+              <p className="text-sm md:text-base font-black text-slate-700">{formatter.format(displayCompra)}</p>
             </div>
             <div className="text-right">
               <p className="text-[8px] text-slate-400 font-black uppercase tracking-widest mb-1">Venta</p>
-              <p className="text-sm md:text-base font-black text-slate-900">{data ? formatter.format(data.venta) : '---'}</p>
+              <p className="text-sm md:text-base font-black text-slate-900">{formatter.format(displayVenta)}</p>
             </div>
           </>
         ) : (
           <>
             <div>
               <p className="text-[8px] text-slate-400 font-black uppercase tracking-widest mb-1">Variación</p>
-              <p className={`text-sm md:text-base font-black ${data?.variacion?.startsWith('+') ? 'text-emerald-500' : 'text-red-500'}`}>{data?.variacion || '0.0%'}</p>
+              <p className={`text-sm md:text-base font-black ${displayVar.startsWith('+') ? 'text-emerald-500' : 'text-red-500'}`}>{displayVar}</p>
             </div>
             <div className="text-right">
               <p className="text-[8px] text-slate-400 font-black uppercase tracking-widest mb-1">Sector</p>
@@ -217,9 +222,9 @@ export default function MarketPage() {
                 )}
                 {activeTab === 'bonos' && data?.bonds?.map((bond: any, i: number) => (
                   <MarketCard 
-                    key={bond.ticker} 
+                    key={bond.symbol || bond.ticker} 
                     index={i} 
-                    title={bond.ticker} 
+                    title={bond.symbol || bond.ticker} 
                     data={bond} 
                     icon={Landmark} 
                     color="bg-blue-600" 
@@ -230,9 +235,9 @@ export default function MarketPage() {
                 ))}
                 {activeTab === 'acciones' && data?.stocks?.map((stock: any, i: number) => (
                   <MarketCard 
-                    key={stock.ticker} 
+                    key={stock.symbol || stock.ticker} 
                     index={i} 
-                    title={stock.ticker} 
+                    title={stock.symbol || stock.ticker} 
                     data={stock} 
                     icon={Briefcase} 
                     color="bg-blue-600" 
